@@ -18,6 +18,11 @@
   .ok{background:var(--ok)} .warn{background:var(--warn)} .bad{background:var(--bad)}
   .row{display:flex;justify-content:space-between;align-items:baseline;border-bottom:1px solid #333;padding-bottom:1.2vh}
   .row .k{font-size:3vh;color:var(--muted)} .row .v{font-size:5vh;font-weight:700}
+  #days{display:flex;gap:.8vw;align-items:center}
+  #days button{flex:1;font-size:2.6vh;padding:1.2vh .4vw;border-radius:1vh;border:0;background:#333;color:#fff}
+  #days button:focus{outline:4px solid #ffd54a}
+  #dayLabel{font-size:3.4vh;font-weight:700;text-align:center}
+  .past{color:#ffd54a}
   .note{font-size:2.2vh;color:var(--muted);line-height:1.5}
   #setup{position:fixed;inset:0;z-index:10000;box-sizing:border-box;background:var(--bg);display:none;flex-direction:column;align-items:center;justify-content:center;gap:3vh;padding:4vw;text-align:center}
   #setup input{box-sizing:border-box;font-size:3.6vh;width:100%;max-width:1200px;padding:1.6vh;border-radius:1vh;border:2px solid #555;background:#000;color:#fff}
@@ -38,7 +43,9 @@
     <div class="row"><span class="k">位置の時刻</span><span class="v" id="ptime">—</span></div>
     <div class="row"><span class="k">電池</span><span class="v" id="bat">—</span></div>
     <div class="row"><span class="k">状態</span><span class="v" id="mov">—</span></div>
-    <div class="note">赤い線＝今日（0時から）の動き。0時になると消えます。10秒ごとに更新。<br>家の中で寝ている間は送信が止まることがあります（黄・赤でも異常とは限りません）。</div>
+    <div id="dayLabel">今日の軌跡</div>
+    <div id="days"><button id="prev">◀ 前の日</button><button id="today">今日</button><button id="next">次の日 ▶</button></div>
+    <div class="note">赤い線＝選んだ日（0時〜24時）の動き。今日の線は0時になると消えます（データは flespi に約1年残ります）。10秒ごとに更新。<br>家の中で寝ている間は送信が止まることがあります（黄・赤でも異常とは限りません）。</div>
     <button id="reset">トークンを入れ直す</button>
   </div>
 </div>
@@ -69,7 +76,28 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,att
 const marker=L.marker([0,0],{icon:L.divIcon({className:'',html:'<div class="catdot"></div>',iconSize:[26,26],iconAnchor:[13,13]})});
 const trail=L.polyline([],{color:'#ff5a36',weight:5,opacity:.8}).addTo(map);
 let first=true, lastServer=0;
-let trailDay=0, trailPts=[], trailLast=0;
+let trailDay=0, trailPts=[], trailLast=0, viewDay=null, isToday=true;
+const WD='日月火水木金土';
+function dayText(d){ const t=new Date((d+9*3600)*1000); return (t.getUTCMonth()+1)+'/'+t.getUTCDate()+'('+WD[t.getUTCDay()]+')' }
+function showDayLabel(){ const l=$('dayLabel'); if(viewDay===null) return; if(isToday){l.textContent='今日 '+dayText(viewDay)+' の軌跡';l.className=''} else {l.textContent=dayText(viewDay)+' の軌跡（過去）';l.className='past'} $('next').disabled=isToday }
+async function loadPast(d){
+  // 過去の日：その日の 0:00〜24:00 をまとめて読み、全体が見えるように地図を合わせる
+  $('dayLabel').textContent=dayText(d)+' を読み込み中…';
+  const msgs=await get('/messages?data='+encodeURIComponent(JSON.stringify({from:d,to:d+86399,fields:'position.latitude,position.longitude,position.valid'})));
+  const pts=msgs.filter(x=>x['position.latitude']&&x['position.valid']!==false).map(x=>[x['position.latitude'],x['position.longitude']]);
+  trail.setLatLngs(pts); if(pts.length) map.fitBounds(trail.getBounds(),{padding:[40,40],maxZoom:18});
+  showDayLabel(); if(!pts.length) $('dayLabel').textContent=dayText(d)+'：記録なし';
+}
+async function goDay(delta){
+  if(!token) return; const today=jstMidnight();
+  let d=(delta===0)?today:(viewDay??today)+delta*86400; if(d>today) d=today;
+  viewDay=d; isToday=(d===today);
+  try{
+    if(isToday){ trailDay=0; await tick(true) } else await loadPast(d);
+  }catch(e){ $('dayLabel').textContent='読み込みに失敗しました' }
+}
+$('prev').onclick=()=>goDay(-1); $('next').onclick=()=>goDay(1); $('today').onclick=()=>goDay(0);
+document.addEventListener('keydown',e=>{ if($('setup').style.display==='flex') return; if(e.key==='ArrowLeft'&&document.activeElement.tagName!=='BUTTON'){goDay(-1)} if(e.key==='ArrowRight'&&document.activeElement.tagName!=='BUTTON'){goDay(1)} });
 function jstMidnight(){ const n=Math.floor(Date.now()/1000), j=n+9*3600; return n-(j%86400) }   // 日本時間の今日 0:00（UNIX 秒）
 
 async function get(path){
@@ -97,17 +125,22 @@ async function tick(force){
     const lat=v('position.latitude'), lon=v('position.longitude');
     if(lat&&lon){
       marker.setLatLng([lat,lon]); if(!map.hasLayer(marker)) marker.addTo(map);
-      if(first||force){map.setView([lat,lon],17);first=false}
+      if((first||force)&&isToday){map.setView([lat,lon],17);first=false}
       $('ptime').textContent=tel['position.latitude']?hm(tel['position.latitude'].ts):'—';
     }
     const b=v('battery.level'); $('bat').textContent=(b!=null?b+'%':'—');
     const ev=v('event.code'); $('mov').textContent=ev==='STILL'?'静止':(ev==='AUTO'?'移動中':(ev||'—'));
-    // 軌跡：日本時間の今日 0:00 から。日付が変わったら消して描き直す。2回目からは前回の続きだけ読む
+    // 軌跡：今日を見ているときは 0:00 から、2回目からは前回の続きだけ読む。日付が変わったら今日に切り替えて描き直す
     const day0=jstMidnight();
-    if(day0!==trailDay){trailDay=day0; trailPts=[]; trailLast=day0-1}
-    const msgs=await get('/messages?data='+encodeURIComponent(JSON.stringify({from:trailLast+1,fields:'timestamp,position.latitude,position.longitude,position.valid'})));
-    for(const x of msgs){ if(x.timestamp>trailLast) trailLast=x.timestamp; if(x['position.latitude']&&x['position.valid']!==false) trailPts.push([x['position.latitude'],x['position.longitude']]) }
-    trail.setLatLngs(trailPts);
+    if(viewDay===null||(viewDay===trailDay&&day0!==trailDay&&viewDay>=day0-86400&&isToday)) viewDay=day0;
+    isToday=(viewDay===day0);
+    if(isToday){
+      if(trailDay!==day0){trailDay=day0; trailPts=[]; trailLast=day0-1}
+      const msgs=await get('/messages?data='+encodeURIComponent(JSON.stringify({from:trailLast+1,fields:'timestamp,position.latitude,position.longitude,position.valid'})));
+      for(const x of msgs){ if(x.timestamp>trailLast) trailLast=x.timestamp; if(x['position.latitude']&&x['position.valid']!==false) trailPts.push([x['position.latitude'],x['position.longitude']]) }
+      trail.setLatLngs(trailPts);
+    }
+    showDayLabel();
     paint();
   }catch(e){
     if(e.message==='auth'){ $('status').className='bad'; $('status').textContent='トークンが使えません'; showSetup() }
