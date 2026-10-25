@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>ねこモニター</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+  /* 茶の間のテレビ（Fire TV）で見る、見るだけの画面。トークンはこのファイルに入れない（端末のブラウザに保存） */
+  :root{--bg:#111;--panel:#1c1c1c;--fg:#f2f2f2;--muted:#9a9a9a;--ok:#2e9e5b;--warn:#c99a1c;--bad:#c0392b}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);font-family:"Hiragino Sans","Noto Sans JP",sans-serif}
+  #app{display:flex;height:100%}
+  #map{flex:1 1 auto;height:100%}
+  #side{width:30%;min-width:320px;box-sizing:border-box;padding:3vh 2.2vw;background:var(--panel);display:flex;flex-direction:column;gap:2.4vh}
+  .title{font-size:3.2vh;color:var(--muted)}
+  #status{border-radius:1.6vh;padding:2.4vh 1.6vw;font-size:4.4vh;font-weight:700;text-align:center}
+  .ok{background:var(--ok)} .warn{background:var(--warn)} .bad{background:var(--bad)}
+  .row{display:flex;justify-content:space-between;align-items:baseline;border-bottom:1px solid #333;padding-bottom:1.2vh}
+  .row .k{font-size:3vh;color:var(--muted)} .row .v{font-size:5vh;font-weight:700}
+  .note{font-size:2.2vh;color:var(--muted);line-height:1.5}
+  #setup{position:fixed;inset:0;background:var(--bg);display:none;flex-direction:column;align-items:center;justify-content:center;gap:3vh;padding:4vw}
+  #setup input{font-size:3.6vh;width:80vw;padding:1.6vh;border-radius:1vh;border:2px solid #555;background:#000;color:#fff}
+  #setup button,#reset{font-size:3.6vh;padding:1.4vh 3vw;border-radius:1vh;border:0;background:#3a6fd8;color:#fff}
+  #setup button:focus,#reset:focus,#setup input:focus{outline:4px solid #ffd54a}
+  #reset{background:#333;font-size:2.2vh;padding:1vh 1.4vw;align-self:flex-start;margin-top:auto}
+  .catdot{width:26px;height:26px;border-radius:50%;background:#ff5a36;border:4px solid #fff;box-shadow:0 0 0 6px rgba(255,90,54,.35)}
+  @media (max-width:800px){#app{flex-direction:column}#side{width:100%;min-width:0}#map{height:60%}}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="map"></div>
+  <div id="side">
+    <div class="title">ねこモニター（MT710）</div>
+    <div id="status" class="warn">読み込み中…</div>
+    <div class="row"><span class="k">最後の受信</span><span class="v" id="ago">—</span></div>
+    <div class="row"><span class="k">位置の時刻</span><span class="v" id="ptime">—</span></div>
+    <div class="row"><span class="k">電池</span><span class="v" id="bat">—</span></div>
+    <div class="row"><span class="k">状態</span><span class="v" id="mov">—</span></div>
+    <div class="note">赤い線＝この1時間の動き。10秒ごとに更新。<br>家の中で寝ている間は送信が止まることがあります（黄・赤でも異常とは限りません）。</div>
+    <button id="reset">トークンを入れ直す</button>
+  </div>
+</div>
+<div id="setup">
+  <div style="font-size:4vh">はじめに flespi の「見るだけ」トークンを入力してください</div>
+  <input id="tok" type="text" autocomplete="off" spellcheck="false" placeholder="トークン（64文字）">
+  <button id="save">保存して表示</button>
+  <div class="note">トークンはこのテレビのブラウザの中だけに保存されます。</div>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+const DEV=9194373, API='https://flespi.io/gw/devices/'+DEV, KEY='catmon.token';
+const GREEN_MIN=3, RED_MIN=30;   // 最後の受信からの分数：3分以内＝緑、30分超＝赤、その間＝黄
+const $=id=>document.getElementById(id);
+function load(){try{return localStorage.getItem(KEY)||''}catch(e){return ''}}
+function store(v){try{localStorage.setItem(KEY,v)}catch(e){}}
+let token=load(); let mem='';
+// URL の #t=... でも受け取れる（受け取ったら保存して URL から消す）
+const m=location.hash.match(/t=([A-Za-z0-9]+)/); if(m){token=m[1];store(token);mem=token;history.replaceState(null,'',location.pathname)}
+if(!token&&mem) token=mem;
+function showSetup(){ $('setup').style.display='flex'; $('tok').focus() }
+$('save').onclick=()=>{const v=$('tok').value.trim(); if(v.length<20) return; token=v; store(v); $('setup').style.display='none'; tick(true)};
+$('tok').addEventListener('keydown',e=>{if(e.key==='Enter') $('save').click()});
+$('reset').onclick=()=>{ $('tok').value=''; showSetup() };
+
+const map=L.map('map',{zoomControl:false,attributionControl:true}).setView([35.68,139.76],5);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; OpenStreetMap contributors'}).addTo(map);
+const marker=L.marker([0,0],{icon:L.divIcon({className:'',html:'<div class="catdot"></div>',iconSize:[26,26],iconAnchor:[13,13]})});
+const trail=L.polyline([],{color:'#ff5a36',weight:5,opacity:.8}).addTo(map);
+let first=true, lastServer=0;
+
+async function get(path){
+  const r=await fetch(API+path,{headers:{Authorization:'FlespiToken '+token}});
+  if(r.status===401||r.status===403) throw new Error('auth');
+  if(!r.ok) throw new Error('http '+r.status);
+  return (await r.json()).result||[];
+}
+const hm=t=>new Date(t*1000).toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'});
+function agoText(s){ if(s<60) return Math.max(0,Math.round(s))+'秒前'; if(s<3600) return Math.floor(s/60)+'分前'; return Math.floor(s/3600)+'時間'+Math.floor(s%3600/60)+'分前' }
+function paint(){
+  if(!lastServer) return;
+  const s=Date.now()/1000-lastServer, mins=s/60, st=$('status');
+  $('ago').textContent=agoText(s);
+  if(mins<=GREEN_MIN){st.className='ok';st.textContent='受信中'}
+  else if(mins<=RED_MIN){st.className='warn';st.textContent='しばらく受信なし'}
+  else {st.className='bad';st.textContent='長い間 受信なし'}
+}
+async function tick(force){
+  if(!token){showSetup();return}
+  try{
+    const t=(await get('/telemetry/position.latitude,position.longitude,position.valid,timestamp,server.timestamp,battery.level,event.code'))[0];
+    const tel=(t&&t.telemetry)||{}; const v=k=>tel[k]&&tel[k].value;
+    lastServer=v('server.timestamp')||v('timestamp')||0;
+    const lat=v('position.latitude'), lon=v('position.longitude');
+    if(lat&&lon){
+      marker.setLatLng([lat,lon]); if(!map.hasLayer(marker)) marker.addTo(map);
+      if(first||force){map.setView([lat,lon],17);first=false}
+      $('ptime').textContent=tel['position.latitude']?hm(tel['position.latitude'].ts):'—';
+    }
+    const b=v('battery.level'); $('bat').textContent=(b!=null?b+'%':'—');
+    const ev=v('event.code'); $('mov').textContent=ev==='STILL'?'静止':(ev==='AUTO'?'移動中':(ev||'—'));
+    const from=Math.floor(Date.now()/1000)-3600;
+    const msgs=await get('/messages?data='+encodeURIComponent(JSON.stringify({from,fields:'position.latitude,position.longitude,position.valid'})));
+    trail.setLatLngs(msgs.filter(x=>x['position.latitude']&&x['position.valid']!==false).map(x=>[x['position.latitude'],x['position.longitude']]));
+    paint();
+  }catch(e){
+    if(e.message==='auth'){ $('status').className='bad'; $('status').textContent='トークンが使えません'; showSetup() }
+    else { $('status').className='bad'; $('status').textContent='通信エラー（再試行中）' }
+  }
+}
+tick(); setInterval(tick,10000); setInterval(paint,1000);
+</script>
+</body>
+</html>
