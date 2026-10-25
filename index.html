@@ -38,7 +38,7 @@
     <div class="row"><span class="k">位置の時刻</span><span class="v" id="ptime">—</span></div>
     <div class="row"><span class="k">電池</span><span class="v" id="bat">—</span></div>
     <div class="row"><span class="k">状態</span><span class="v" id="mov">—</span></div>
-    <div class="note">赤い線＝この1時間の動き。10秒ごとに更新。<br>家の中で寝ている間は送信が止まることがあります（黄・赤でも異常とは限りません）。</div>
+    <div class="note">赤い線＝今日（0時から）の動き。0時になると消えます。10秒ごとに更新。<br>家の中で寝ている間は送信が止まることがあります（黄・赤でも異常とは限りません）。</div>
     <button id="reset">トークンを入れ直す</button>
   </div>
 </div>
@@ -69,6 +69,8 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,att
 const marker=L.marker([0,0],{icon:L.divIcon({className:'',html:'<div class="catdot"></div>',iconSize:[26,26],iconAnchor:[13,13]})});
 const trail=L.polyline([],{color:'#ff5a36',weight:5,opacity:.8}).addTo(map);
 let first=true, lastServer=0;
+let trailDay=0, trailPts=[], trailLast=0;
+function jstMidnight(){ const n=Math.floor(Date.now()/1000), j=n+9*3600; return n-(j%86400) }   // 日本時間の今日 0:00（UNIX 秒）
 
 async function get(path){
   const r=await fetch(API+path,{headers:{Authorization:'FlespiToken '+token}});
@@ -100,9 +102,12 @@ async function tick(force){
     }
     const b=v('battery.level'); $('bat').textContent=(b!=null?b+'%':'—');
     const ev=v('event.code'); $('mov').textContent=ev==='STILL'?'静止':(ev==='AUTO'?'移動中':(ev||'—'));
-    const from=Math.floor(Date.now()/1000)-3600;
-    const msgs=await get('/messages?data='+encodeURIComponent(JSON.stringify({from,fields:'position.latitude,position.longitude,position.valid'})));
-    trail.setLatLngs(msgs.filter(x=>x['position.latitude']&&x['position.valid']!==false).map(x=>[x['position.latitude'],x['position.longitude']]));
+    // 軌跡：日本時間の今日 0:00 から。日付が変わったら消して描き直す。2回目からは前回の続きだけ読む
+    const day0=jstMidnight();
+    if(day0!==trailDay){trailDay=day0; trailPts=[]; trailLast=day0-1}
+    const msgs=await get('/messages?data='+encodeURIComponent(JSON.stringify({from:trailLast+1,fields:'timestamp,position.latitude,position.longitude,position.valid'})));
+    for(const x of msgs){ if(x.timestamp>trailLast) trailLast=x.timestamp; if(x['position.latitude']&&x['position.valid']!==false) trailPts.push([x['position.latitude'],x['position.longitude']]) }
+    trail.setLatLngs(trailPts);
     paint();
   }catch(e){
     if(e.message==='auth'){ $('status').className='bad'; $('status').textContent='トークンが使えません'; showSetup() }
