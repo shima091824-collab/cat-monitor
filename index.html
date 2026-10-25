@@ -19,8 +19,8 @@
   .row{display:flex;justify-content:space-between;align-items:baseline;border-bottom:1px solid #333;padding-bottom:1.2vh}
   .row .k{font-size:3vh;color:var(--muted)} .row .v{font-size:5vh;font-weight:700}
   .note{font-size:2.2vh;color:var(--muted);line-height:1.5}
-  #setup{position:fixed;inset:0;background:var(--bg);display:none;flex-direction:column;align-items:center;justify-content:center;gap:3vh;padding:4vw}
-  #setup input{font-size:3.6vh;width:80vw;padding:1.6vh;border-radius:1vh;border:2px solid #555;background:#000;color:#fff}
+  #setup{position:fixed;inset:0;z-index:10000;box-sizing:border-box;background:var(--bg);display:none;flex-direction:column;align-items:center;justify-content:center;gap:3vh;padding:4vw;text-align:center}
+  #setup input{box-sizing:border-box;font-size:3.6vh;width:100%;max-width:1200px;padding:1.6vh;border-radius:1vh;border:2px solid #555;background:#000;color:#fff}
   #setup button,#reset{font-size:3.6vh;padding:1.4vh 3vw;border-radius:1vh;border:0;background:#3a6fd8;color:#fff}
   #setup button:focus,#reset:focus,#setup input:focus{outline:4px solid #ffd54a}
   #reset{background:#333;font-size:2.2vh;padding:1vh 1.4vw;align-self:flex-start;margin-top:auto}
