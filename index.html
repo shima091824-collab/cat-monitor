@@ -97,7 +97,7 @@ let trailDay=0, trailPts=[], trailTs=[], trailLast=0, viewDay=null, isToday=true
 // 軌跡に時刻の目印（10/27 オーナー指摘「家の周りに札が重なって読めない」で変更）
 // その日いちばん長くいた場所（緯度・経度の中央値）から HOME_M 以内は「家の周り」とみなして札を付けない。
 // 家の周りの外では、前の札から LABEL_M 以上離れ、かつ LABEL_MIN 分以上たった点に札。最初と最後の点にも札。
-const HOME_M=60, LABEL_M=40, LABEL_MIN=5;
+const HOME_M=60, LABEL_M=50, LABEL_MIN=5;   // 10/27 オーナー指定で札の間隔 40→50m
 const timeLayer=L.layerGroup().addTo(map);
 function drawTimes(pts,ts){
   timeLayer.clearLayers(); if(!pts.length) return;
