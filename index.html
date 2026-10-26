@@ -30,6 +30,8 @@
   #zoom{position:absolute;right:1.4vw;bottom:3vh;z-index:1000;display:flex;flex-direction:column;gap:.8vh}
   #pad button,#zoom button{width:7vh;height:7vh;font-size:3.6vh;border-radius:1.2vh;border:0;background:rgba(20,20,20,.82);color:#fff;padding:0}
   #pad button:focus,#zoom button:focus{outline:4px solid #ffd54a}
+  .tlabel{background:rgba(20,20,20,.85);color:#fff;border:0;border-radius:6px;font-size:1.7vh;font-weight:700;padding:2px 6px;box-shadow:none}
+  .tlabel:before{display:none}
   .note{font-size:2.2vh;color:var(--muted);line-height:1.5}
   #setup{position:fixed;inset:0;z-index:10000;box-sizing:border-box;background:var(--bg);display:none;flex-direction:column;align-items:center;justify-content:center;gap:3vh;padding:4vw;text-align:center}
   #setup input{box-sizing:border-box;font-size:3.6vh;width:100%;max-width:1200px;padding:1.6vh;border-radius:1vh;border:2px solid #555;background:#000;color:#fff}
@@ -60,7 +62,7 @@
     <div class="row"><span class="k">状態</span><span class="v" id="mov">—</span></div>
     <div id="dayLabel">今日の軌跡</div>
     <div id="days"><button id="prev">◀ 前の日</button><button id="today">今日</button><button id="next">次の日 ▶</button></div>
-    <div class="note">赤い線＝選んだ日（0時〜24時）の動き。今日の線は0時になると消えます（データは flespi に約1年残ります）。10秒ごとに更新。<br>家の中で寝ている間は送信が止まることがあります（黄・赤でも異常とは限りません）。</div>
+    <div class="note">赤い線＝選んだ日（0時〜24時）の動き。線の上の時刻は10分ごとの目安。今日の線は0時になると消えます（データは flespi に約1年残ります）。10秒ごとに更新。<br>家の中で寝ている間は送信が止まることがあります（黄・赤でも異常とは限りません）。</div>
     <button id="reset">トークンを入れ直す</button>
   </div>
 </div>
@@ -91,16 +93,26 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,att
 const marker=L.marker([0,0],{icon:L.divIcon({className:'',html:'<div class="catdot"></div>',iconSize:[26,26],iconAnchor:[13,13]})});
 const trail=L.polyline([],{color:'#ff5a36',weight:5,opacity:.8}).addTo(map);
 let first=true, lastServer=0;
-let trailDay=0, trailPts=[], trailLast=0, viewDay=null, isToday=true;
+let trailDay=0, trailPts=[], trailTs=[], trailLast=0, viewDay=null, isToday=true;
+// 軌跡に時刻の目印：最初と最後の点、その間は10分以上あいたら1つ（多すぎると読めないため）
+const TLABEL_MIN=10;
+const timeLayer=L.layerGroup().addTo(map);
+function drawTimes(pts,ts){
+  timeLayer.clearLayers(); if(!pts.length) return; let last=-1e12;
+  pts.forEach((p,i)=>{ const isEnd=(i===0||i===pts.length-1);
+    if(isEnd||ts[i]-last>=TLABEL_MIN*60){ last=ts[i];
+      L.circleMarker(p,{radius:4,color:'#fff',weight:2,fillColor:'#ff5a36',fillOpacity:1}).bindTooltip(hm(ts[i]),{permanent:true,direction:'top',offset:[0,-4],className:'tlabel'}).addTo(timeLayer) } });
+}
 const WD='日月火水木金土';
 function dayText(d){ const t=new Date((d+9*3600)*1000); return (t.getUTCMonth()+1)+'/'+t.getUTCDate()+'('+WD[t.getUTCDay()]+')' }
 function showDayLabel(){ const l=$('dayLabel'); if(viewDay===null) return; if(isToday){l.textContent='今日 '+dayText(viewDay)+' の軌跡';l.className=''} else {l.textContent=dayText(viewDay)+' の軌跡（過去）';l.className='past'} $('next').disabled=isToday }
 async function loadPast(d){
   // 過去の日：その日の 0:00〜24:00 をまとめて読み、全体が見えるように地図を合わせる
   $('dayLabel').textContent=dayText(d)+' を読み込み中…';
-  const msgs=await get('/messages?data='+encodeURIComponent(JSON.stringify({from:d,to:d+86399,fields:'position.latitude,position.longitude,position.valid'})));
-  const pts=msgs.filter(x=>x['position.latitude']&&x['position.valid']!==false).map(x=>[x['position.latitude'],x['position.longitude']]);
-  trail.setLatLngs(pts); if(pts.length) map.fitBounds(trail.getBounds(),{padding:[40,40],maxZoom:18});
+  const msgs=await get('/messages?data='+encodeURIComponent(JSON.stringify({from:d,to:d+86399,fields:'timestamp,position.latitude,position.longitude,position.valid'})));
+  const ok=msgs.filter(x=>x['position.latitude']&&x['position.valid']!==false);
+  const pts=ok.map(x=>[x['position.latitude'],x['position.longitude']]);
+  trail.setLatLngs(pts); drawTimes(pts,ok.map(x=>x.timestamp)); if(pts.length) map.fitBounds(trail.getBounds(),{padding:[40,40],maxZoom:18});
   showDayLabel(); if(!pts.length) $('dayLabel').textContent=dayText(d)+'：記録なし';
 }
 async function goDay(delta){
@@ -146,7 +158,7 @@ async function tick(force){
     if(lat&&lon){
       marker.setLatLng([lat,lon]); if(!map.hasLayer(marker)) marker.addTo(map);
       if((first||force)&&isToday){map.setView([lat,lon],17);first=false}
-      $('ptime').textContent=tel['position.latitude']?hm(tel['position.latitude'].ts):'—';
+      $('ptime').textContent=tel['position.latitude']?((tel['position.latitude'].ts<jstMidnight()?dayText(tel['position.latitude'].ts-((tel['position.latitude'].ts+9*3600)%86400)).replace(/\(.\)/,'')+' ':'')+hm(tel['position.latitude'].ts)):'—';
     }
     const b=v('battery.level'); $('bat').textContent=(b!=null?b+'%':'—');
     const ev=v('event.code'); $('mov').textContent=ev==='STILL'?'静止':(ev==='AUTO'?'移動中':(ev||'—'));
@@ -155,10 +167,10 @@ async function tick(force){
     if(viewDay===null||(viewDay===trailDay&&day0!==trailDay&&viewDay>=day0-86400&&isToday)) viewDay=day0;
     isToday=(viewDay===day0);
     if(isToday){
-      if(trailDay!==day0){trailDay=day0; trailPts=[]; trailLast=day0-1}
+      if(trailDay!==day0){trailDay=day0; trailPts=[]; trailTs=[]; trailLast=day0-1; timeLayer.clearLayers()}
       const msgs=await get('/messages?data='+encodeURIComponent(JSON.stringify({from:trailLast+1,fields:'timestamp,position.latitude,position.longitude,position.valid'})));
-      for(const x of msgs){ if(x.timestamp>trailLast) trailLast=x.timestamp; if(x['position.latitude']&&x['position.valid']!==false) trailPts.push([x['position.latitude'],x['position.longitude']]) }
-      trail.setLatLngs(trailPts);
+      for(const x of msgs){ if(x.timestamp>trailLast) trailLast=x.timestamp; if(x['position.latitude']&&x['position.valid']!==false){ trailPts.push([x['position.latitude'],x['position.longitude']]); trailTs.push(x.timestamp) } }
+      trail.setLatLngs(trailPts); if(msgs.length||!timeLayer.getLayers().length) drawTimes(trailPts,trailTs);
     }
     showDayLabel();
     paint();
