@@ -62,7 +62,7 @@
     <div class="row"><span class="k">状態</span><span class="v" id="mov">—</span></div>
     <div id="dayLabel">今日の軌跡</div>
     <div id="days"><button id="prev">◀ 前の日</button><button id="today">今日</button><button id="next">次の日 ▶</button></div>
-    <div class="note">赤い線＝選んだ日（0時〜24時）の動き。線の上の時刻は、家の周り（約60m）の外を動いたところの目安。今日の線は0時になると消えます（データは flespi に約1年残ります）。10秒ごとに更新。<br>家の中で寝ている間は送信が止まることがあります（黄・赤でも異常とは限りません）。</div>
+    <div class="note">赤い線＝選んだ日（0時〜24時）の動き。線の上の時刻は、家の周り（約60m）の外を動いたところ。拡大すると増えます。今日の線は0時になると消えます（データは flespi に約1年残ります）。10秒ごとに更新。<br>家の中で寝ている間は送信が止まることがあります（黄・赤でも異常とは限りません）。</div>
     <button id="reset">トークンを入れ直す</button>
   </div>
 </div>
@@ -94,23 +94,30 @@ const marker=L.marker([0,0],{icon:L.divIcon({className:'',html:'<div class="catd
 const trail=L.polyline([],{color:'#ff5a36',weight:5,opacity:.8}).addTo(map);
 let first=true, lastServer=0;
 let trailDay=0, trailPts=[], trailTs=[], trailLast=0, viewDay=null, isToday=true;
-// 軌跡に時刻の目印（10/27 オーナー指摘「家の周りに札が重なって読めない」で変更）
-// その日いちばん長くいた場所（緯度・経度の中央値）から HOME_M 以内は「家の周り」とみなして札を付けない。
-// 家の周りの外では、前の札から LABEL_M 以上離れ、かつ LABEL_MIN 分以上たった点に札。最初と最後の点にも札。
-const HOME_M=60, LABEL_M=50, LABEL_MIN=5;   // 10/27 オーナー指定で札の間隔 40→50m
+// 軌跡に時刻の目印（10/27 オーナー指摘：家の周りで札が重なる → 減らしすぎ → もう少し出したい）
+// その日いちばん長くいた場所（緯度・経度の中央値）から HOME_M 以内は札を付けない（最初と最後の点は除く）。
+// 外では LABEL_MIN 分ごとに候補を作り、画面上で既に置いた札と重なるものだけ省く。拡大すると札が増える。
+const HOME_M=60, LABEL_MIN=2;
+const lblSize=()=>{const f=window.innerHeight*0.017; return [f*3.3+14, f*1.5+6]};   // 札の大きさ（.tlabel の文字 1.7vh に合わせる）
 const timeLayer=L.layerGroup().addTo(map);
-function drawTimes(pts,ts){
-  timeLayer.clearLayers(); if(!pts.length) return;
+let tPts=[], tTs=[];
+function drawTimes(pts,ts){ tPts=pts; tTs=ts; layoutTimes() }
+function layoutTimes(){
+  const pts=tPts, ts=tTs; timeLayer.clearLayers(); if(!pts.length) return;
   const med=a=>{const b=[...a].sort((x,y)=>x-y);return b[Math.floor(b.length/2)]};
   const home=L.latLng(med(pts.map(p=>p[0])),med(pts.map(p=>p[1])));
-  let last=-1e12, lp=null;
-  const put=(p,t)=>{ L.circleMarker(p,{radius:4,color:'#fff',weight:2,fillColor:'#ff5a36',fillOpacity:1}).bindTooltip(hm(t),{permanent:true,direction:'top',offset:[0,-4],className:'tlabel'}).addTo(timeLayer); last=t; lp=L.latLng(p) };
-  pts.forEach((p,i)=>{
-    if(i===0||i===pts.length-1){ put(p,ts[i]); return }
-    if(map.distance(home,p)<HOME_M) return;
-    if((!lp||map.distance(lp,p)>=LABEL_M)&&ts[i]-last>=LABEL_MIN*60) put(p,ts[i]);
-  });
+  const cand=[0,pts.length-1]; let last=-1e12;
+  pts.forEach((p,i)=>{ if(i===0||i===pts.length-1) return; if(map.distance(home,p)<HOME_M) return;
+    if(ts[i]-last>=LABEL_MIN*60){ cand.push(i); last=ts[i] } });
+  const boxes=[];
+  for(const i of cand){
+    const [W,H]=lblSize(); const pt=map.latLngToContainerPoint(pts[i]); const bx=[pt.x-W/2,pt.y-H-6,pt.x+W/2,pt.y-6];
+    if(boxes.some(q=>bx[0]<q[2]&&bx[2]>q[0]&&bx[1]<q[3]&&bx[3]>q[1])) continue;
+    boxes.push(bx);
+    L.circleMarker(pts[i],{radius:4,color:'#fff',weight:2,fillColor:'#ff5a36',fillOpacity:1}).bindTooltip(hm(ts[i]),{permanent:true,direction:'top',offset:[0,-4],className:'tlabel'}).addTo(timeLayer);
+  }
 }
+map.on('zoomend',layoutTimes);
 
 const WD='日月火水木金土';
 function dayText(d){ const t=new Date((d+9*3600)*1000); return (t.getUTCMonth()+1)+'/'+t.getUTCDate()+'('+WD[t.getUTCDay()]+')' }
