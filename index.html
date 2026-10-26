@@ -97,7 +97,7 @@ let trailDay=0, trailPts=[], trailTs=[], trailLast=0, viewDay=null, isToday=true
 // 軌跡に時刻の目印（10/27 オーナー指摘：家の周りで札が重なる → 減らしすぎ → もう少し出したい）
 // その日いちばん長くいた場所（緯度・経度の中央値）から HOME_M 以内は札を付けない（最初と最後の点は除く）。
 // 外では LABEL_MIN 分ごとに候補を作り、画面上で既に置いた札と重なるものだけ省く。拡大すると札が増える。
-const HOME_M=60, LABEL_MIN=2;
+const HOME_M=60, LABEL_MIN=0.5;   // 10/27：2分→30秒（拡大しても札が増えないとの指摘。間引きは画面上の重なりで行う）
 const lblSize=()=>{const f=window.innerHeight*0.017; return [f*3.3+14, f*1.5+6]};   // 札の大きさ（.tlabel の文字 1.7vh に合わせる）
 const timeLayer=L.layerGroup().addTo(map);
 let tPts=[], tTs=[];
