@@ -62,7 +62,7 @@
     <div class="row"><span class="k">状態</span><span class="v" id="mov">—</span></div>
     <div id="dayLabel">今日の軌跡</div>
     <div id="days"><button id="prev">◀ 前の日</button><button id="today">今日</button><button id="next">次の日 ▶</button></div>
-    <div class="note">赤い線＝選んだ日（0時〜24時）の動き。線の上の時刻は10分ごとの目安。今日の線は0時になると消えます（データは flespi に約1年残ります）。10秒ごとに更新。<br>家の中で寝ている間は送信が止まることがあります（黄・赤でも異常とは限りません）。</div>
+    <div class="note">赤い線＝選んだ日（0時〜24時）の動き。線の上の時刻は、40m以上動いたところの目安。今日の線は0時になると消えます（データは flespi に約1年残ります）。10秒ごとに更新。<br>家の中で寝ている間は送信が止まることがあります（黄・赤でも異常とは限りません）。</div>
     <button id="reset">トークンを入れ直す</button>
   </div>
 </div>
@@ -94,13 +94,15 @@ const marker=L.marker([0,0],{icon:L.divIcon({className:'',html:'<div class="catd
 const trail=L.polyline([],{color:'#ff5a36',weight:5,opacity:.8}).addTo(map);
 let first=true, lastServer=0;
 let trailDay=0, trailPts=[], trailTs=[], trailLast=0, viewDay=null, isToday=true;
-// 軌跡に時刻の目印：最初と最後の点、その間は10分以上あいたら1つ（多すぎると読めないため）
-const TLABEL_MIN=10;
+// 軌跡に時刻の目印：最初と最後の点と、前の札から 40m 以上離れ、かつ 5分以上たった点だけ
+// （家の周りで位置がふらつく間は札を増やさない。10/27 オーナー指摘「家の周りに札が重なって読めない」）
+const TLABEL_MIN=5, TLABEL_M=40;
 const timeLayer=L.layerGroup().addTo(map);
 function drawTimes(pts,ts){
-  timeLayer.clearLayers(); if(!pts.length) return; let last=-1e12;
+  timeLayer.clearLayers(); if(!pts.length) return; let last=-1e12, lp=null;
   pts.forEach((p,i)=>{ const isEnd=(i===0||i===pts.length-1);
-    if(isEnd||ts[i]-last>=TLABEL_MIN*60){ last=ts[i];
+    const far=!lp||map.distance(lp,p)>=TLABEL_M;
+    if(isEnd||(far&&ts[i]-last>=TLABEL_MIN*60)){ last=ts[i]; lp=p;
       L.circleMarker(p,{radius:4,color:'#fff',weight:2,fillColor:'#ff5a36',fillOpacity:1}).bindTooltip(hm(ts[i]),{permanent:true,direction:'top',offset:[0,-4],className:'tlabel'}).addTo(timeLayer) } });
 }
 const WD='日月火水木金土';
