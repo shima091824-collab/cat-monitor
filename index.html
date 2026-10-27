@@ -270,7 +270,7 @@ function paint(){
   else {st.className='bad';st.textContent='長い間 受信なし'}
   if(dot) dot.classList.toggle('alarm-dot',alarm);
   $('sirenBox').style.display=alarm?'block':'none';
-  $('help').style.display=alarm?'none':''; $('reset').style.display=alarm?'none':'';   // 異常のときは説明文を隠して、右欄を画面に収める
+  $('help').style.display=alarm?'none':''; $('reset').style.display=alarm?'none':''; $('sample').style.display=alarm?'none':'';   // 異常のときは説明文を隠して、右欄を画面に収める
 }
 async function tick(force){
   if(!token){showSetup();return}
