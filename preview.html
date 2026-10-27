@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>ねこモニター（見本）</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+  /* 茶の間のテレビ（Fire TV）で見る、見るだけの画面。トークンはこのファイルに入れない（端末のブラウザに保存） */
+  :root{--bg:#111;--panel:#1c1c1c;--fg:#f2f2f2;--muted:#9a9a9a;--ok:#2e9e5b;--warn:#c99a1c;--bad:#c0392b}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);font-family:"Hiragino Sans","Noto Sans JP",sans-serif}
+  #app{display:flex;height:100%}
+  #map{flex:1 1 auto;height:100%}
+  #side{width:30%;min-width:320px;box-sizing:border-box;padding:2.2vh 2vw;background:var(--panel);display:flex;flex-direction:column;gap:1.3vh}
+  .title{font-size:2.8vh;color:var(--muted)}
+  #status{border-radius:1.6vh;padding:1.6vh 1.6vw;font-size:4.2vh;font-weight:700;text-align:center}
+  .ok{background:var(--ok)} .warn{background:var(--warn)} .bad{background:var(--bad)}
+  .row{display:flex;justify-content:space-between;align-items:baseline;border-bottom:1px solid #333;padding-bottom:.8vh}
+  .row .k{font-size:3vh;color:var(--muted)} .row .v{font-size:4.4vh;font-weight:700}
+  #days{display:flex;gap:.8vw;align-items:center}
+  #days button{flex:1;font-size:2.6vh;padding:1.2vh .4vw;border-radius:1vh;border:0;background:#333;color:#fff}
+  #days button:focus{outline:4px solid #ffd54a}
+  #dayLabel{font-size:3.4vh;font-weight:700;text-align:center}
+  .past{color:#ffd54a}
+  /* Fire TV のリモコン用：地図の上の大きなボタン（タッチもマウスもない端末で移動・拡大縮小） */
+  #mapwrap{position:relative;flex:1 1 auto;height:100%}
+  #mapwrap #map{position:absolute;inset:0}
+  #pad{position:absolute;left:1.4vw;bottom:3vh;z-index:1000;display:grid;grid-template-columns:repeat(3,7vh);grid-template-rows:repeat(3,7vh);gap:.8vh}
+  #zoom{position:absolute;right:1.4vw;bottom:3vh;z-index:1000;display:flex;flex-direction:column;gap:.8vh}
+  #pad button,#zoom button{width:7vh;height:7vh;font-size:3.6vh;border-radius:1.2vh;border:0;background:rgba(20,20,20,.82);color:#fff;padding:0}
+  #pad button:focus,#zoom button:focus{outline:4px solid #ffd54a}
+  .tlabel{background:rgba(20,20,20,.85);color:#fff;border:0;border-radius:6px;font-size:1.7vh;font-weight:700;padding:2px 6px;box-shadow:none}
+  .tlabel:before{display:none}
+  .note{font-size:2.1vh;color:var(--muted);line-height:1.4}
+  #setup{position:fixed;inset:0;z-index:10000;box-sizing:border-box;background:var(--bg);display:none;flex-direction:column;align-items:center;justify-content:center;gap:3vh;padding:4vw;text-align:center}
+  #setup input{box-sizing:border-box;font-size:3.6vh;width:100%;max-width:1200px;padding:1.6vh;border-radius:1vh;border:2px solid #555;background:#000;color:#fff}
+  #setup button,#reset{font-size:3.6vh;padding:1.4vh 3vw;border-radius:1vh;border:0;background:#3a6fd8;color:#fff}
+  #setup button:focus,#reset:focus,#setup input:focus{outline:4px solid #ffd54a}
+  #reset{background:#333;font-size:1.9vh;padding:.7vh 1.2vw;align-self:flex-start;margin-top:auto}
+  .catdot{width:26px;height:26px;border-radius:50%;background:#ff5a36;border:4px solid #fff;box-shadow:0 0 0 6px rgba(255,90,54,.35)}
+  @media (max-width:800px){#app{flex-direction:column}#side{width:100%;min-width:0}#mapwrap{flex:none;height:60%}}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="mapwrap">
+    <div id="map"></div>
+    <div id="pad">
+      <span></span><button id="up" title="上へ">▲</button><span></span>
+      <button id="left" title="左へ">◀</button><button id="center" title="猫の位置へ" style="font-size:3vh">●</button><button id="right" title="右へ">▶</button>
+      <span></span><button id="down" title="下へ">▼</button><span></span>
+    </div>
+    <div id="zoom"><button id="zin" title="拡大">＋</button><button id="zout" title="縮小">－</button></div>
+  </div>
+  <div id="side">
+    <div class="title">ねこモニター（MT710）</div>
+    <div id="status" class="warn">読み込み中…</div>
+    <div class="row"><span class="k">最後の受信</span><span class="v" id="ago">—</span></div>
+    <div class="row"><span class="k">位置の時刻</span><span class="v" id="ptime">—</span></div>
+    <div class="row"><span class="k">電池</span><span class="v" id="bat">—</span></div>
+    <div class="row"><span class="k" style="white-space:nowrap">電池の残り</span><span class="v" id="batleft" style="font-size:3.8vh">—</span></div>
+    <div class="row"><span class="k">状態</span><span class="v" id="mov">—</span></div>
+    <div id="dayLabel">今日の軌跡</div>
+    <div id="days"><button id="prev">◀ 前の日</button><button id="today">今日</button><button id="next">次の日 ▶</button></div>
+    <div class="note">線＝選んだ日（0〜24時）の動き。色は <span style="color:#ffb88c">■</span>早い時刻→<span style="color:#8c140a">■</span>遅い時刻。<span style="color:#7fb3ff">◯</span>＝家（中は線を引かない）。時刻は家の外の動き、拡大すると増えます。今日の線は0時に消えます（flespi に約1年残る）。家の中では送信が止まることがあります。</div>
+    
+    <button id="reset">トークンを入れ直す</button>
+  </div>
+</div>
+<div id="setup">
+  <div style="font-size:4vh">はじめに flespi の「見るだけ」トークンを入力してください</div>
+  <input id="tok" type="text" autocomplete="off" spellcheck="false" placeholder="トークン（64文字）">
+  <button id="save">保存して表示</button>
+  <div class="note">トークンはこのテレビのブラウザの中だけに保存されます。</div>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+const DEV=9194373, API='https://flespi.io/gw/devices/'+DEV, KEY='catmon.token';
+const GREEN_MIN=3, RED_MIN=30;   // 最後の受信からの分数：3分以内＝緑、30分超＝赤、その間＝黄
+const $=id=>document.getElementById(id);
+function load(){try{return localStorage.getItem(KEY)||''}catch(e){return ''}}
+function store(v){try{localStorage.setItem(KEY,v)}catch(e){}}
+let token=load(); let mem='';
+// URL の #t=... でも受け取れる（受け取ったら保存して URL から消す）
+const m=location.hash.match(/t=([A-Za-z0-9]+)/); if(m){token=m[1];store(token);mem=token;history.replaceState(null,'',location.pathname)}
+if(!token&&mem) token=mem;
+function showSetup(){ $('setup').style.display='flex'; $('tok').focus() }
+$('save').onclick=()=>{const v=$('tok').value.trim(); if(v.length<20) return; token=v; store(v); $('setup').style.display='none'; tick(true)};
+$('tok').addEventListener('keydown',e=>{if(e.key==='Enter') $('save').click()});
+$('reset').onclick=()=>{ $('tok').value=''; showSetup() };
+
+const map=L.map('map',{zoomControl:false,attributionControl:true}).setView([35.68,139.76],5);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; OpenStreetMap contributors'}).addTo(map);
+const marker=L.marker([0,0],{icon:L.divIcon({className:'',html:'<div class="catdot"></div>',iconSize:[26,26],iconAnchor:[13,13]})});
+const trailLayer=L.layerGroup().addTo(map);
+// 家（その日いちばん長くいた場所）から HOME_M 以内は線を引かず、薄い円だけ描く（屋内の GPS のばらつきでトゲトゲになるため）
+// 10/27 オーナー指摘「見栄えがよくない」→ ①円に出入りする線は円の縁で切る（円の中に線の切れ端を残さない）
+// ②色はその日の外出の最初→最後で 薄→濃（0〜24時だと夕方だけの日は全部同じ色になった） ③前後3点の平均でギザギザをならす
+const spanColor=t=>{const a=[255,184,140], b=[240,80,40], c=[140,20,10]; const m=(x,y,u)=>Math.round(x+(y-x)*u);
+  const [p,q,u]=t<.5?[a,b,t*2]:[b,c,(t-.5)*2]; return 'rgb('+m(p[0],q[0],u)+','+m(p[1],q[1],u)+','+m(p[2],q[2],u)+')'};
+const NCOL=8;   // 色の段階（線の本数＝段階数×外出回数。Fire TV の負荷を抑える）
+function drawTrail(pts,ts){
+  trailLayer.clearLayers(); if(!pts.length) return;
+  const med=a=>{const b=[...a].sort((x,y)=>x-y);return b[Math.floor(b.length/2)]};
+  const home=L.latLng(med(pts.map(p=>p[0])),med(pts.map(p=>p[1])));
+  L.circle(home,{radius:HOME_M,color:'#6fa8ff',weight:2,opacity:.7,fill:true,fillColor:'#6fa8ff',fillOpacity:.07,dashArray:'4 8'}).addTo(trailLayer);
+  // 家を原点にしたメートル座標（円との交点を求めるため）
+  const kx=111320*Math.cos(home.lat*Math.PI/180), ky=110540;
+  const toXY=p=>[(p[1]-home.lng)*kx,(p[0]-home.lat)*ky], toLL=q=>[home.lat+q[1]/ky, home.lng+q[0]/kx];
+  const edge=(a,b)=>{ // a（円の中）→ b（円の外）の線が円の縁と交わる点
+    const A=toXY(a), B=toXY(b), dx=B[0]-A[0], dy=B[1]-A[1];
+    const qa=dx*dx+dy*dy, qb=2*(A[0]*dx+A[1]*dy), qc=A[0]*A[0]+A[1]*A[1]-HOME_M*HOME_M;
+    const t=(-qb+Math.sqrt(Math.max(0,qb*qb-4*qa*qc)))/(2*qa||1); return toLL([A[0]+dx*t,A[1]+dy*t]) };
+  const isOut=pts.map(p=>map.distance(home,p)>=HOME_M);
+  // 外にいる区間（外出）ごとに、前後3点の平均でならした線を作る
+  const trips=[]; let cur=null;
+  pts.forEach((p,i)=>{
+    if(!isOut[i]){ if(cur){ cur.p.push(edge(p,cur.p[cur.p.length-1])); cur.t.push(ts[i]); trips.push(cur); cur=null } return }
+    if(!cur){ cur={p:[],t:[]}; if(i>0){ cur.p.push(edge(pts[i-1],p)); cur.t.push(ts[i-1]) } }
+    cur.p.push(p); cur.t.push(ts[i]);
+  });
+  if(cur) trips.push(cur);
+  const outTs=trips.flatMap(r=>r.t); if(!outTs.length) return;
+  const t0=Math.min(...outTs), t1=Math.max(...outTs), span=Math.max(1,t1-t0);
+  for(const r of trips){
+    const P=r.p.map((p,i,a)=>{ if(i===0||i===a.length-1) return p;   // 両端（円の縁）は動かさない
+      return [(a[i-1][0]+p[0]+a[i+1][0])/3,(a[i-1][1]+p[1]+a[i+1][1])/3] });
+    let k0=0, c0=Math.min(NCOL-1,Math.floor((r.t[0]-t0)/span*NCOL));
+    for(let i=1;i<=P.length;i++){
+      const c=i<P.length?Math.min(NCOL-1,Math.floor((r.t[i]-t0)/span*NCOL)):-1;
+      if(c!==c0){ L.polyline(P.slice(k0,i+(i<P.length?1:0)),{color:spanColor((c0+.5)/NCOL),weight:4.5,opacity:.95,lineJoin:'round',lineCap:'round'}).addTo(trailLayer); k0=i; c0=c }
+    }
+  }
+}
+let first=true, lastServer=0;
+let trailDay=0, trailPts=[], trailTs=[], trailLast=0, viewDay=null, isToday=true;
+// 軌跡に時刻の目印（10/27 オーナー指摘：家の周りで札が重なる → 減らしすぎ → もう少し出したい）
+// その日いちばん長くいた場所（緯度・経度の中央値）から HOME_M 以内は札を付けない（最初と最後の点は除く）。
+// 外では LABEL_MIN 分ごとに候補を作り、画面上で既に置いた札と重なるものだけ省く。拡大すると札が増える。
+const HOME_M=60, LABEL_MIN=0.5;   // 10/27：2分→30秒（拡大しても札が増えないとの指摘。間引きは画面上の重なりで行う）
+const lblSize=()=>{const f=window.innerHeight*0.017; return [f*3.3+14, f*1.5+6]};   // 札の大きさ（.tlabel の文字 1.7vh に合わせる）
+const timeLayer=L.layerGroup().addTo(map);
+let tPts=[], tTs=[];
+function drawTimes(pts,ts){ tPts=pts; tTs=ts; layoutTimes() }
+function layoutTimes(){
+  const pts=tPts, ts=tTs; timeLayer.clearLayers(); if(!pts.length) return;
+  const med=a=>{const b=[...a].sort((x,y)=>x-y);return b[Math.floor(b.length/2)]};
+  const home=L.latLng(med(pts.map(p=>p[0])),med(pts.map(p=>p[1])));
+  const cand=[0,pts.length-1]; let last=-1e12;
+  pts.forEach((p,i)=>{ if(i===0||i===pts.length-1) return; if(map.distance(home,p)<HOME_M) return;
+    if(ts[i]-last>=LABEL_MIN*60){ cand.push(i); last=ts[i] } });
+  const boxes=[];
+  for(const i of cand){
+    const [W,H]=lblSize(); const pt=map.latLngToContainerPoint(pts[i]); const bx=[pt.x-W/2,pt.y-H-6,pt.x+W/2,pt.y-6];
+    if(boxes.some(q=>bx[0]<q[2]&&bx[2]>q[0]&&bx[1]<q[3]&&bx[3]>q[1])) continue;
+    boxes.push(bx);
+    L.circleMarker(pts[i],{radius:4,color:'#fff',weight:2,fillColor:'#ff5a36',fillOpacity:1}).bindTooltip(hm(ts[i]),{permanent:true,direction:'top',offset:[0,-4],className:'tlabel'}).addTo(timeLayer);
+  }
+}
+map.on('zoomend',layoutTimes);
+
+const WD='日月火水木金土';
+function dayText(d){ const t=new Date((d+9*3600)*1000); return (t.getUTCMonth()+1)+'/'+t.getUTCDate()+'('+WD[t.getUTCDay()]+')' }
+function showDayLabel(){ const l=$('dayLabel'); if(viewDay===null) return; if(isToday){l.textContent='今日 '+dayText(viewDay)+' の軌跡';l.className=''} else {l.textContent=dayText(viewDay)+' の軌跡（過去）';l.className='past'} $('next').disabled=isToday }
+async function loadPast(d){
+  // 過去の日：その日の 0:00〜24:00 をまとめて読み、全体が見えるように地図を合わせる
+  $('dayLabel').textContent=dayText(d)+' を読み込み中…';
+  const msgs=await get('/messages?data='+encodeURIComponent(JSON.stringify({from:d,to:d+86399,fields:'timestamp,position.latitude,position.longitude,position.valid'})));
+  const ok=msgs.filter(x=>x['position.latitude']&&x['position.valid']!==false);
+  const pts=ok.map(x=>[x['position.latitude'],x['position.longitude']]);
+  drawTrail(pts,ok.map(x=>x.timestamp)); drawTimes(pts,ok.map(x=>x.timestamp)); if(pts.length) map.fitBounds(L.latLngBounds(pts),{padding:[40,40],maxZoom:18});
+  showDayLabel(); if(!pts.length) $('dayLabel').textContent=dayText(d)+'：記録なし';
+}
+async function goDay(delta){
+  if(!token) return; const today=jstMidnight();
+  let d=(delta===0)?today:(viewDay??today)+delta*86400; if(d>today) d=today;
+  viewDay=d; isToday=(d===today);
+  try{
+    if(isToday){ trailDay=0; await tick(true) } else await loadPast(d);
+  }catch(e){ $('dayLabel').textContent='読み込みに失敗しました' }
+}
+// 地図の移動（画面の 1/3 ずつ）と拡大縮小、猫の位置へ戻る
+const panBy=(fx,fy)=>{const z=map.getSize(); map.panBy([z.x*fx/3,z.y*fy/3])};
+$('up').onclick=()=>panBy(0,-1); $('down').onclick=()=>panBy(0,1); $('left').onclick=()=>panBy(-1,0); $('right').onclick=()=>panBy(1,0);
+$('zin').onclick=()=>map.zoomIn(); $('zout').onclick=()=>map.zoomOut();
+$('center').onclick=()=>{ if(map.hasLayer(marker)) map.setView(marker.getLatLng(),Math.max(map.getZoom(),16)) };
+$('prev').onclick=()=>goDay(-1); $('next').onclick=()=>goDay(1); $('today').onclick=()=>goDay(0);
+document.addEventListener('keydown',e=>{ if($('setup').style.display==='flex') return; if(e.key==='ArrowLeft'&&document.activeElement.tagName!=='BUTTON'){goDay(-1)} if(e.key==='ArrowRight'&&document.activeElement.tagName!=='BUTTON'){goDay(1)} });
+function jstMidnight(){ const n=Math.floor(Date.now()/1000), j=n+9*3600; return n-(j%86400) }   // 日本時間の今日 0:00（UNIX 秒）
+
+async function get(path){
+  const r=await fetch(API+path,{headers:{Authorization:'FlespiToken '+token}});
+  if(r.status===401||r.status===403) throw new Error('auth');
+  if(!r.ok) throw new Error('http '+r.status);
+  return (await r.json()).result||[];
+}
+const hm=t=>new Date(t*1000).toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'});
+function agoText(s){ if(s<60) return Math.max(0,Math.round(s))+'秒前'; if(s<3600) return Math.floor(s/60)+'分前'; return Math.floor(s/3600)+'時間'+Math.floor(s%3600/60)+'分前' }
+function paint(){
+  if(!lastServer) return;
+  const s=Date.now()/1000-lastServer, mins=s/60, st=$('status');
+  $('ago').textContent=agoText(s);
+  if(mins<=GREEN_MIN){st.className='ok';st.textContent='受信中'}
+  else if(mins<=RED_MIN){st.className='warn';st.textContent='しばらく受信なし'}
+  else {st.className='bad';st.textContent='長い間 受信なし'}
+}
+async function tick(force){
+  if(!token){showSetup();return}
+  try{
+    const t=(await get('/telemetry/position.latitude,position.longitude,position.valid,timestamp,server.timestamp,battery.level,event.code'))[0];
+    const tel=(t&&t.telemetry)||{}; const v=k=>tel[k]&&tel[k].value;
+    lastServer=v('server.timestamp')||v('timestamp')||0;
+    const lat=v('position.latitude'), lon=v('position.longitude');
+    if(lat&&lon){
+      marker.setLatLng([lat,lon]); if(!map.hasLayer(marker)) marker.addTo(map);
+      if((first||force)&&isToday){map.setView([lat,lon],17);first=false}
+      $('ptime').textContent=tel['position.latitude']?((tel['position.latitude'].ts<jstMidnight()?dayText(tel['position.latitude'].ts-((tel['position.latitude'].ts+9*3600)%86400)).replace(/\(.\)/,'')+' ':'')+hm(tel['position.latitude'].ts)):'—';
+    }
+    const b=v('battery.level'); $('bat').textContent=(b!=null?b+'%':'—');
+    const ev=v('event.code'); $('mov').textContent=ev==='STILL'?'静止':(ev==='AUTO'?'移動中':(ev||'—'));
+    // 軌跡：今日を見ているときは 0:00 から、2回目からは前回の続きだけ読む。日付が変わったら今日に切り替えて描き直す
+    const day0=jstMidnight();
+    if(viewDay===null||(viewDay===trailDay&&day0!==trailDay&&viewDay>=day0-86400&&isToday)) viewDay=day0;
+    isToday=(viewDay===day0);
+    if(isToday){
+      if(trailDay!==day0){trailDay=day0; trailPts=[]; trailTs=[]; trailLast=day0-1; timeLayer.clearLayers(); trailLayer.clearLayers()}
+      const msgs=await get('/messages?data='+encodeURIComponent(JSON.stringify({from:trailLast+1,fields:'timestamp,position.latitude,position.longitude,position.valid'})));
+      for(const x of msgs){ if(x.timestamp>trailLast) trailLast=x.timestamp; if(x['position.latitude']&&x['position.valid']!==false){ trailPts.push([x['position.latitude'],x['position.longitude']]); trailTs.push(x.timestamp) } }
+      if(msgs.length||!timeLayer.getLayers().length){ drawTrail(trailPts,trailTs); drawTimes(trailPts,trailTs) }
+    }
+    if(b!=null) batLeft(b).catch(()=>{});
+    showDayLabel();
+    paint();
+  }catch(e){
+    if(e.message==='auth'){ $('status').className='bad'; $('status').textContent='トークンが使えません'; showSetup() }
+    else { $('status').className='bad'; $('status').textContent='通信エラー（再試行中）' }
+  }
+}
+// 電池の残り時間。直近6時間の電池残量（flespi の記録）から、減っている区間だけで 1時間あたりの減りを求める。5分に1回だけ計算
+let batAt=0;
+async function batLeft(now){
+  if(Date.now()-batAt<300000) return; batAt=Date.now();
+  const to=Math.floor(Date.now()/1000), msgs=await get('/messages?data='+encodeURIComponent(JSON.stringify({from:to-6*3600,to,fields:'timestamp,battery.level'})));
+  const s=msgs.filter(x=>x['battery.level']!=null);
+  // 電池の値は ±2〜3% 上下する（10/27 実測）。充電とみなすのは、それまでの最低値から 10% 以上上がったときだけ。その後の記録を使う
+  let k=0, lo=1e9; for(let i=0;i<s.length;i++){ const v=s[i]['battery.level']; if(v>=lo+10){ k=i; lo=v } lo=Math.min(lo,v) }
+  const u=s.slice(k); const el=$('batleft');
+  if(u.length<10||u[u.length-1].timestamp-u[0].timestamp<3600){ el.textContent='計算中'; return }
+  // 上下の揺れをならすため、全点に直線を当てはめた傾き（最小二乗）を使う
+  const n=u.length, xs=u.map(x=>(x.timestamp-u[0].timestamp)/3600), ys=u.map(x=>x['battery.level']);
+  const mx=xs.reduce((a,b)=>a+b)/n, my=ys.reduce((a,b)=>a+b)/n;
+  let sxy=0,sxx=0; for(let i=0;i<n;i++){ sxy+=(xs[i]-mx)*(ys[i]-my); sxx+=(xs[i]-mx)**2 }
+  const rate=-sxy/sxx; if(!(rate>0.2)){ el.textContent='ほぼ減っていない'; return }
+  const left=now/rate;
+  el.innerHTML='約'+Math.floor(left)+'時間<span style="font-size:2.4vh;color:var(--muted)">（'+rate.toFixed(1)+'%/時）</span>';
+}
+tick(); setInterval(tick,10000); setInterval(paint,1000);
+</script>
+</body>
+</html>
