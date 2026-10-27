@@ -54,6 +54,12 @@
   .batt{position:relative;width:6.5vh;height:3.2vh;border:.4vh solid #ddd;border-radius:.6vh;box-sizing:border-box;padding:.3vh}
   .batt:after{content:'';position:absolute;right:-1.1vh;top:.8vh;width:.6vh;height:1vh;background:#ddd;border-radius:0 .3vh .3vh 0}
   #battFill{display:block;height:100%;width:0;border-radius:.2vh;background:var(--ok)}
+  /* 10/28 緊急確認の枠の下に、異常時の帯と回転灯の見本（小さく）を付ける */
+  #sample{display:flex;align-items:center;gap:.8vw;margin-top:.6vh}
+  #sampleSiren{width:4.5vh;flex:none}
+  #sampleSiren svg{width:100%;display:block}
+  .sband{background:var(--bad);color:#fff;font-weight:700;font-size:1.8vh;padding:.4vh .8vw;border-radius:.8vh;white-space:nowrap}
+  .slabel{font-size:1.8vh;color:var(--muted);white-space:nowrap}
   #alarmInfo{display:none;font-size:2.4vh;font-weight:700;color:#ffb3a8;line-height:1.4}
   .catdot.alarm-dot{box-shadow:0 0 0 10px rgba(192,57,43,.55),0 0 0 22px rgba(192,57,43,.25)}
   .catdot{width:26px;height:26px;border-radius:50%;background:#ff5a36;border:4px solid #fff;box-shadow:0 0 0 6px rgba(255,90,54,.35)}
@@ -82,7 +88,7 @@
     <div id="dayLabel">今日の軌跡</div>
     <div id="days"><button id="prev">◀ 前の日</button><button id="today">今日</button><button id="next">次の日 ▶</button></div>
     <div class="note" id="help">線＝その日の動き（<span style="color:#ffb88c">■</span>早い→<span style="color:#8c140a">■</span>遅い時刻）。<span style="color:#7fb3ff">◯</span>＝家（中は線なし）。時刻は家の外の動き、拡大で増えます。0時に消えます（flespi に約1年残る）。</div>
-    <div class="note" id="rule" style="color:#ffb3a8;border:1px solid #6d3a33;border-radius:1vh;padding:.6vh 1vw"><b>緊急確認のタイミング</b>：家（中心から30m）の外で、40分以上 受信なし（動きなし）のとき。赤い帯と回転灯が出たら、地図の赤い点へ見に行く。</div>
+    <div class="note" id="rule" style="color:#ffb3a8;border:1px solid #6d3a33;border-radius:1vh;padding:.6vh 1vw"><b>緊急確認のタイミング</b>：家（中心から30m）の外で、40分以上 受信なし（動きなし）のとき。赤い帯と回転灯が出たら、地図の赤い点へ見に行く。<div id="sample"><span id="sampleSiren"></span><span class="sband">異常：家の外で◯分 動きなし</span><span class="slabel">← この表示</span></div></div>
     <div class="note" id="homeWarn" style="display:none;color:#ffd54a">家の位置を計算中のため、異常の判定はまだ止まっています。</div>
     <div style="display:flex;gap:1vw;margin-top:auto"><button id="reset">トークンを入れ直す</button></div>
   </div>
@@ -123,7 +129,8 @@ async function updateHome(){
   const h=L.latLng(med(rest.map(p=>p[0])),med(rest.map(p=>p[1])));
   if(!HOME||map.distance(HOME,h)>1){ HOME=h; if(isToday){ drawTrail(trailPts,trailTs); layoutTimes() } }
 }
-try{ localStorage.removeItem('catmon.home') }catch(e){}   // 手入力していた頃の値を消す
+try{ localStorage.removeItem('catmon.home') }catch(e){}
+$('sampleSiren').innerHTML=$('siren').outerHTML.replace('id="siren"','');   // 見本用に回転灯の図を複製   // 手入力していた頃の値を消す
 
 const map=L.map('map',{zoomControl:false,attributionControl:true}).setView([35.68,139.76],5);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; OpenStreetMap contributors'}).addTo(map);
