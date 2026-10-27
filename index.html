@@ -32,7 +32,7 @@
   #pad button:focus,#zoom button:focus{outline:4px solid #ffd54a}
   .tlabel{background:rgba(20,20,20,.85);color:#fff;border:0;border-radius:6px;font-size:1.7vh;font-weight:700;padding:2px 6px;box-shadow:none}
   .tlabel:before{display:none}
-  .rlabel{position:absolute;transform:translate(-50%,-50%);white-space:nowrap;background:#fff;color:#2f6fd6;border:2px solid #6fa8ff;border-radius:999px;font-size:1.5vh;font-weight:700;padding:1px 8px}
+  .rlabel{position:absolute;transform:translate(-50%,-135%);white-space:nowrap;background:#fff;color:#2f6fd6;border:2px solid #6fa8ff;border-radius:999px;font-size:1.5vh;font-weight:700;padding:1px 8px}
   .note{font-size:2.1vh;color:var(--muted);line-height:1.4}
   #setup{position:fixed;inset:0;z-index:10000;box-sizing:border-box;background:var(--bg);display:none;flex-direction:column;align-items:center;justify-content:center;gap:3vh;padding:4vw;text-align:center}
   #setup input{box-sizing:border-box;font-size:3.6vh;width:100%;max-width:1200px;padding:1.6vh;border-radius:1vh;border:2px solid #555;background:#000;color:#fff}
@@ -108,8 +108,12 @@ function drawTrail(pts,ts){
   L.circle(home,{radius:HOME_M,color:'#6fa8ff',weight:2,opacity:.7,fill:true,fillColor:'#6fa8ff',fillOpacity:.07,dashArray:'4 8'}).addTo(trailLayer);
   // 家を原点にしたメートル座標（円との交点を求めるため）
   const kx=111320*Math.cos(home.lat*Math.PI/180), ky=110540;
-  // 円の上の縁に「半径20m」と書く（10/27 オーナー指示）
-  L.marker([home.lat+HOME_M/ky, home.lng],{interactive:false,keyboard:false,icon:L.divIcon({className:'',html:'<div class="rlabel">半径'+HOME_M+'m</div>',iconSize:[0,0]})}).addTo(trailLayer);
+  // 円の中に、中心から右の縁まで「←→ 20m」の寸法線を描く（10/27 オーナー指示）
+  { const R=HOME_M, a=R*.18, w=R*.1, ll=(x,y)=>[home.lat+y/ky, home.lng+x/kx], st={color:'#2f6fd6',weight:2.5,opacity:.9,interactive:false};
+    L.polyline([ll(0,0),ll(R,0)],st).addTo(trailLayer);
+    L.polyline([ll(a,w),ll(0,0),ll(a,-w)],st).addTo(trailLayer);        // 左の矢じり
+    L.polyline([ll(R-a,w),ll(R,0),ll(R-a,-w)],st).addTo(trailLayer);    // 右の矢じり
+    L.marker(ll(R/2,0),{interactive:false,keyboard:false,icon:L.divIcon({className:'',html:'<div class="rlabel">'+R+'m</div>',iconSize:[0,0]})}).addTo(trailLayer); }
   const toXY=p=>[(p[1]-home.lng)*kx,(p[0]-home.lat)*ky], toLL=q=>[home.lat+q[1]/ky, home.lng+q[0]/kx];
   const edge=(a,b)=>{ // a（円の中）→ b（円の外）の線が円の縁と交わる点
     const A=toXY(a), B=toXY(b), dx=B[0]-A[0], dy=B[1]-A[1];
