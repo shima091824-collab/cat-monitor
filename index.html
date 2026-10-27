@@ -43,6 +43,13 @@
   .home{background:#3c5a78}
   .alarm{background:var(--bad);animation:blink 1s steps(2,start) infinite}
   @keyframes blink{to{background:#6d1a12}}
+  /* 異常時の回転灯（10/27 オーナー指示。見本のイラストは素材サイトの画像のため使わず、同じ雰囲気の図を描いた） */
+  #statusWrap{display:flex;align-items:center;gap:1vw}
+  #statusWrap #status{flex:1}
+  #sirenBox{display:none;width:12vh;flex:none}
+  #sirenBox svg{width:100%;display:block}
+  #siren .rays{animation:rays .6s ease-in-out infinite alternate}
+  @keyframes rays{from{opacity:.15}to{opacity:1}}
   #alarmInfo{display:none;font-size:2.6vh;font-weight:700;color:#ffb3a8;line-height:1.4}
   .catdot.alarm-dot{box-shadow:0 0 0 10px rgba(192,57,43,.55),0 0 0 22px rgba(192,57,43,.25)}
   .catdot{width:26px;height:26px;border-radius:50%;background:#ff5a36;border:4px solid #fff;box-shadow:0 0 0 6px rgba(255,90,54,.35)}
@@ -62,7 +69,7 @@
   </div>
   <div id="side">
     <div class="title">ねこモニター（MT710）</div>
-    <div id="status" class="warn">読み込み中…</div>
+    <div id="statusWrap"><div id="sirenBox"><svg id="siren" viewBox="0 0 120 100" aria-hidden="true"><g class="rays" stroke="#ffcf2e" stroke-width="7" stroke-linecap="round"><line x1="14" y1="30" x2="28" y2="38"/><line x1="8" y1="58" x2="24" y2="58"/><line x1="30" y1="10" x2="38" y2="24"/><line x1="106" y1="30" x2="92" y2="38"/><line x1="112" y1="58" x2="96" y2="58"/><line x1="90" y1="10" x2="82" y2="24"/></g><path d="M36 78 V54 a24 24 0 0 1 48 0 V78 Z" fill="#e8231b" stroke="#5a0d08" stroke-width="3"/><path d="M44 56 a14 14 0 0 1 10 -16" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" opacity=".85"/><rect x="28" y="76" width="64" height="12" rx="3" fill="#cfd4da" stroke="#5c6168" stroke-width="3"/><rect x="24" y="86" width="72" height="8" rx="2" fill="#9aa1a8" stroke="#5c6168" stroke-width="3"/></svg></div><div id="status" class="warn">読み込み中…</div></div>
     <div id="alarmInfo"></div>
     <div class="row"><span class="k">最後の受信</span><span class="v" id="ago">—</span></div>
     <div class="row"><span class="k">位置の時刻</span><span class="v" id="ptime">—</span></div>
@@ -251,6 +258,7 @@ function paint(){
   else if(mins<=RED_MIN){st.className='warn';st.textContent='しばらく受信なし'}
   else {st.className='bad';st.textContent='長い間 受信なし'}
   if(dot) dot.classList.toggle('alarm-dot',alarm);
+  $('sirenBox').style.display=alarm?'block':'none';
   $('help').style.display=alarm?'none':'';   // 異常のときは説明文を隠して、右欄を画面に収める
 }
 async function tick(force){
