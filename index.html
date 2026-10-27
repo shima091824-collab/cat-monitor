@@ -74,7 +74,6 @@
     <div class="row"><span class="k">最後の受信</span><span class="v" id="ago">—</span></div>
     <div class="row"><span class="k">位置の時刻</span><span class="v" id="ptime">—</span></div>
     <div class="row"><span class="k">電池</span><span class="v" id="bat">—</span></div>
-    <div class="row"><span class="k" style="white-space:nowrap">電池の残り</span><span class="v" id="batleft" style="font-size:3.8vh">—</span></div>
     <div class="row"><span class="k">状態</span><span class="v" id="mov">—</span></div>
     <div id="dayLabel">今日の軌跡</div>
     <div id="days"><button id="prev">◀ 前の日</button><button id="today">今日</button><button id="next">次の日 ▶</button></div>
@@ -287,7 +286,6 @@ async function tick(force){
       for(const x of msgs){ if(x.timestamp>trailLast) trailLast=x.timestamp; if(x['position.latitude']&&x['position.valid']!==false){ trailPts.push([x['position.latitude'],x['position.longitude']]); trailTs.push(x.timestamp) } }
       if(msgs.length||!timeLayer.getLayers().length){ drawTrail(trailPts,trailTs); drawTimes(trailPts,trailTs) }
     }
-    if(b!=null) batLeft(b).catch(()=>{});
     showDayLabel();
     paint();
   }catch(e){
@@ -295,24 +293,7 @@ async function tick(force){
     else { $('status').className='bad'; $('status').textContent='通信エラー（再試行中）' }
   }
 }
-// 電池の残り時間。直近6時間の電池残量（flespi の記録）から、減っている区間だけで 1時間あたりの減りを求める。5分に1回だけ計算
-let batAt=0;
-async function batLeft(now){
-  if(Date.now()-batAt<300000) return; batAt=Date.now();
-  const to=Math.floor(Date.now()/1000), msgs=await get('/messages?data='+encodeURIComponent(JSON.stringify({from:to-6*3600,to,fields:'timestamp,battery.level'})));
-  const s=msgs.filter(x=>x['battery.level']!=null);
-  // 電池の値は ±2〜3% 上下する（10/27 実測）。充電とみなすのは、それまでの最低値から 10% 以上上がったときだけ。その後の記録を使う
-  let k=0, lo=1e9; for(let i=0;i<s.length;i++){ const v=s[i]['battery.level']; if(v>=lo+10){ k=i; lo=v } lo=Math.min(lo,v) }
-  const u=s.slice(k); const el=$('batleft');
-  if(u.length<10||u[u.length-1].timestamp-u[0].timestamp<3600){ el.textContent='計算中'; return }
-  // 上下の揺れをならすため、全点に直線を当てはめた傾き（最小二乗）を使う
-  const n=u.length, xs=u.map(x=>(x.timestamp-u[0].timestamp)/3600), ys=u.map(x=>x['battery.level']);
-  const mx=xs.reduce((a,b)=>a+b)/n, my=ys.reduce((a,b)=>a+b)/n;
-  let sxy=0,sxx=0; for(let i=0;i<n;i++){ sxy+=(xs[i]-mx)*(ys[i]-my); sxx+=(xs[i]-mx)**2 }
-  const rate=-sxy/sxx; if(!(rate>0.2)){ el.textContent='ほぼ減っていない'; return }
-  const left=now/rate;
-  el.innerHTML='約'+Math.floor(left)+'時間<span style="font-size:2.4vh;color:var(--muted)">（'+rate.toFixed(1)+'%/時）</span>';
-}
+// 10/27 「電池の残り」行は削除（オーナー：休んでいる間は減り方が変わり当てにならない）
 tick(); setInterval(tick,10000); setInterval(paint,1000);
 </script>
 </body>
