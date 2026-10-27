@@ -53,6 +53,11 @@
   /* 10/27「電池58%が何かわかりづらい」→ 首輪（MT710）の電池と明記し、電池の形の目盛りを添える */
   .batt{position:relative;width:6.5vh;height:3.2vh;border:.4vh solid #ddd;border-radius:.6vh;box-sizing:border-box;padding:.3vh}
   .batt:after{content:'';position:absolute;right:-1.1vh;top:.8vh;width:.6vh;height:1vh;background:#ddd;border-radius:0 .3vh .3vh 0}
+  /* 10/28 充電中は電池の絵を稲妻マークに変え、見出しを「充電中」にする（battery.charging.status：PLUG で true、UNPLUG・FULL で false［実測］） */
+  .batt .bolt{display:none;position:absolute;left:50%;top:50%;width:3.4vh;height:3.4vh;transform:translate(-50%,-50%)}
+  .batt.charging .bolt{display:block}
+  .batt.charging #battFill{opacity:.35}
+  #battK.charging{color:#ffd54a;font-weight:700}
   #battFill{display:block;height:100%;width:0;border-radius:.2vh;background:var(--ok)}
   /* 10/28 緊急確認の枠の下に、異常時の帯と回転灯の見本（小さく）を付ける */
   #sample{display:flex;align-items:center;gap:.8vw;margin-top:.6vh}
@@ -83,7 +88,7 @@
     <div id="alarmInfo"></div>
     <div class="row"><span class="k">最後の受信</span><span class="v" id="ago">—</span></div>
     <div class="row"><span class="k">位置の時刻</span><span class="v" id="ptime">—</span></div>
-    <div class="row"><span class="k">電池残量</span><span class="v" style="display:flex;align-items:center;gap:1vw"><span class="batt"><span id="battFill"></span></span><span id="bat">—</span></span></div>
+    <div class="row"><span class="k" id="battK">電池残量</span><span class="v" style="display:flex;align-items:center;gap:1vw"><span class="batt" id="battIcon"><span id="battFill"></span><svg class="bolt" viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2 4 14h7l-1 8 9-12h-7z" fill="#ffd54a" stroke="#1c1c1c" stroke-width="1.5" stroke-linejoin="round"/></svg></span><span id="bat">—</span></span></div>
     <div class="row"><span class="k">状態</span><span class="v" id="mov">—</span></div>
     <div id="dayLabel">今日の軌跡</div>
     <div id="days"><button id="prev">◀ 前の日</button><button id="today">今日</button><button id="next">次の日 ▶</button></div>
@@ -276,7 +281,7 @@ async function tick(force){
   if(!token){showSetup();return}
   try{
     await updateHome().catch(()=>{});
-    const t=(await get('/telemetry/position.latitude,position.longitude,position.valid,timestamp,server.timestamp,battery.level,event.code'))[0];
+    const t=(await get('/telemetry/position.latitude,position.longitude,position.valid,timestamp,server.timestamp,battery.level,battery.charging.status,event.code'))[0];
     const tel=(t&&t.telemetry)||{}; const v=k=>tel[k]&&tel[k].value;
     lastServer=v('server.timestamp')||v('timestamp')||0;
     const lat=v('position.latitude'), lon=v('position.longitude');
@@ -287,6 +292,7 @@ async function tick(force){
       $('ptime').textContent=tel['position.latitude']?((tel['position.latitude'].ts<jstMidnight()?dayText(tel['position.latitude'].ts-((tel['position.latitude'].ts+9*3600)%86400)).replace(/\(.\)/,'')+' ':'')+hm(tel['position.latitude'].ts)):'—';
     }
     const b=v('battery.level'); lastBat=b; $('bat').textContent=(b!=null?b+'%':'—');
+    const chg=v('battery.charging.status')===true; $('battIcon').classList.toggle('charging',chg); $('battK').classList.toggle('charging',chg); $('battK').textContent=chg?'充電中':'電池残量';
     if(b!=null){ const f=$('battFill'); f.style.width=Math.max(0,Math.min(100,b))+'%'; f.style.background=b<=LOWBAT?'var(--bad)':(b<=40?'var(--warn)':'var(--ok)') }
     const ev=v('event.code'); $('mov').textContent=ev==='STILL'?'静止':(ev==='AUTO'?'移動中':(ev||'—'));
     // 軌跡：今日を見ているときは 0:00 から、2回目からは前回の続きだけ読む。日付が変わったら今日に切り替えて描き直す
