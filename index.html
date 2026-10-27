@@ -50,6 +50,10 @@
   #sirenBox svg{width:100%;display:block}
   #siren .rays{animation:rays .6s ease-in-out infinite alternate}
   @keyframes rays{from{opacity:.15}to{opacity:1}}
+  /* 10/27「電池58%が何かわかりづらい」→ 首輪（MT710）の電池と明記し、電池の形の目盛りを添える */
+  .batt{position:relative;width:6.5vh;height:3.2vh;border:.4vh solid #ddd;border-radius:.6vh;box-sizing:border-box;padding:.3vh}
+  .batt:after{content:'';position:absolute;right:-1.1vh;top:.8vh;width:.6vh;height:1vh;background:#ddd;border-radius:0 .3vh .3vh 0}
+  #battFill{display:block;height:100%;width:0;border-radius:.2vh;background:var(--ok)}
   #alarmInfo{display:none;font-size:2.6vh;font-weight:700;color:#ffb3a8;line-height:1.4}
   .catdot.alarm-dot{box-shadow:0 0 0 10px rgba(192,57,43,.55),0 0 0 22px rgba(192,57,43,.25)}
   .catdot{width:26px;height:26px;border-radius:50%;background:#ff5a36;border:4px solid #fff;box-shadow:0 0 0 6px rgba(255,90,54,.35)}
@@ -73,7 +77,7 @@
     <div id="alarmInfo"></div>
     <div class="row"><span class="k">最後の受信</span><span class="v" id="ago">—</span></div>
     <div class="row"><span class="k">位置の時刻</span><span class="v" id="ptime">—</span></div>
-    <div class="row"><span class="k">電池</span><span class="v" id="bat">—</span></div>
+    <div class="row"><span class="k">首輪の電池</span><span class="v" style="display:flex;align-items:center;gap:1vw"><span class="batt"><span id="battFill"></span></span><span id="bat">—</span></span></div>
     <div class="row"><span class="k">状態</span><span class="v" id="mov">—</span></div>
     <div id="dayLabel">今日の軌跡</div>
     <div id="days"><button id="prev">◀ 前の日</button><button id="today">今日</button><button id="next">次の日 ▶</button></div>
@@ -275,6 +279,7 @@ async function tick(force){
       $('ptime').textContent=tel['position.latitude']?((tel['position.latitude'].ts<jstMidnight()?dayText(tel['position.latitude'].ts-((tel['position.latitude'].ts+9*3600)%86400)).replace(/\(.\)/,'')+' ':'')+hm(tel['position.latitude'].ts)):'—';
     }
     const b=v('battery.level'); lastBat=b; $('bat').textContent=(b!=null?b+'%':'—');
+    if(b!=null){ const f=$('battFill'); f.style.width=Math.max(0,Math.min(100,b))+'%'; f.style.background=b<=LOWBAT?'var(--bad)':(b<=40?'var(--warn)':'var(--ok)') }
     const ev=v('event.code'); $('mov').textContent=ev==='STILL'?'静止':(ev==='AUTO'?'移動中':(ev||'—'));
     // 軌跡：今日を見ているときは 0:00 から、2回目からは前回の続きだけ読む。日付が変わったら今日に切り替えて描き直す
     const day0=jstMidnight();
