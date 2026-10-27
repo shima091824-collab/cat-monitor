@@ -243,8 +243,8 @@ function paint(){
   else if(out&&mins>=ALARM_MIN){
     alarm=true; st.className='alarm'; st.textContent='異常：家の外で'+Math.floor(mins)+'分 動きなし';
     info.style.display='block';
-    info.innerHTML='最後の場所：家から約'+dist+'m（'+hm(lastPosTs)+'）。地図の赤い点を確認してください。'+
-      (lastBat!=null&&lastBat<=LOWBAT?'<br>最後の電池が'+lastBat+'%：電池切れの可能性もあります。':'');
+    info.innerHTML='最後の場所：家から約'+dist+'m（'+hm(lastPosTs)+'）＝地図の赤い点'+
+      (lastBat!=null&&lastBat<=LOWBAT?'<br>電池'+lastBat+'%：電池切れの可能性あり':'');
   }
   else if(out){st.className='warn';st.textContent='家の外で受信なし（'+Math.floor(mins)+'分）'}
   else if(mins<=RED_MIN){st.className='warn';st.textContent='しばらく受信なし'}
