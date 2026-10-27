@@ -72,8 +72,8 @@
     <div id="dayLabel">今日の軌跡</div>
     <div id="days"><button id="prev">◀ 前の日</button><button id="today">今日</button><button id="next">次の日 ▶</button></div>
     <div class="note" id="help">線＝選んだ日（0〜24時）の動き。色は <span style="color:#ffb88c">■</span>早い時刻→<span style="color:#8c140a">■</span>遅い時刻。<span style="color:#7fb3ff">◯</span>＝家（中は線を引かない）。時刻は家の外の動き、拡大すると増えます。今日の線は0時に消えます（flespi に約1年残る）。家の中では送信が止まることがあります。</div>
-    <div class="note" id="homeWarn" style="display:none;color:#ffd54a">家の位置が未設定のため、異常の判定は止まっています（下の「家の位置」から設定）。</div>
-    <div style="display:flex;gap:1vw;margin-top:auto"><button id="reset">トークンを入れ直す</button><button id="homeBtn" class="resetlike">家の位置</button></div>
+    <div class="note" id="homeWarn" style="display:none;color:#ffd54a">家の位置を計算中のため、異常の判定はまだ止まっています。</div>
+    <div style="display:flex;gap:1vw;margin-top:auto"><button id="reset">トークンを入れ直す</button></div>
   </div>
 </div>
 <div id="setup">
@@ -82,11 +82,6 @@
   <button id="save">保存して表示</button>
   <div class="note">トークンはこのテレビのブラウザの中だけに保存されます。</div>
 </div>
-<div id="homeset" style="position:fixed;inset:0;z-index:10000;background:var(--bg);display:none;flex-direction:column;align-items:center;justify-content:center;gap:3vh;padding:4vw;text-align:center">
-  <div style="font-size:4vh">家の位置（緯度,経度）を入力してください</div>
-  <input id="homein" type="text" autocomplete="off" spellcheck="false" placeholder="例：35.000000,139.000000" style="box-sizing:border-box;font-size:3.6vh;width:100%;max-width:1200px;padding:1.6vh;border-radius:1vh;border:2px solid #555;background:#000;color:#fff">
-  <div style="display:flex;gap:2vw"><button id="homesave" style="font-size:3.6vh;padding:1.4vh 3vw;border-radius:1vh;border:0;background:#3a6fd8;color:#fff">保存</button><button id="homecancel" style="font-size:3.6vh;padding:1.4vh 3vw;border-radius:1vh;border:0;background:#333;color:#fff">やめる</button></div>
-  <div class="note">家の位置はこのブラウザの中だけに保存され、公開ページには書かれません。</div>
 </div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script>
@@ -103,15 +98,21 @@ function showSetup(){ $('setup').style.display='flex'; $('tok').focus() }
 $('save').onclick=()=>{const v=$('tok').value.trim(); if(v.length<20) return; token=v; store(v); $('setup').style.display='none'; tick(true)};
 $('tok').addEventListener('keydown',e=>{if(e.key==='Enter') $('save').click()});
 $('reset').onclick=()=>{ $('tok').value=''; showSetup() };
-// 家の位置（10/27：家と物置の中間をオーナーと決定）。公開ページに書かないため、各端末のブラウザに保存する。URL の #h=緯度,経度 でも受け取れる
-const KEYH='catmon.home';
-function parseHome(v){ const m=String(v||'').match(/^\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*$/); return m?L.latLng(+m[1],+m[2]):null }
-let HOME=null; try{ HOME=parseHome(localStorage.getItem(KEYH)) }catch(e){}
-const mh=location.hash.match(/h=(-?[\d.]+,-?[\d.]+)/); if(mh&&parseHome(mh[1])){ HOME=parseHome(mh[1]); try{localStorage.setItem(KEYH,mh[1])}catch(e){} history.replaceState(null,'',location.pathname) }
-$('homeBtn').onclick=()=>{ $('homein').value=HOME?HOME.lat.toFixed(6)+','+HOME.lng.toFixed(6):''; $('homeset').style.display='flex'; $('homein').focus() };
-$('homecancel').onclick=()=>{ $('homeset').style.display='none' };
-$('homesave').onclick=()=>{ const h=parseHome($('homein').value); if(!h) return; HOME=h; try{localStorage.setItem(KEYH,h.lat+','+h.lng)}catch(e){} $('homeset').style.display='none'; trailDay=0; tick(true) };
-$('homein').addEventListener('keydown',e=>{if(e.key==='Enter') $('homesave').click()});
+// 家の位置：過去7日間に猫が10分以上じっとしていた場所（受信が10分以上止まる直前の位置）の中央値。
+// 10/27 検証：オーナーと決めた「家と物置の中間」から4m、過去7日の家での40分超の空白25回はこの点から最大26m（30mで誤報0）［実測］。
+// 座標をページに書かない（公開ページ）・端末ごとの入力も不要（テレビも同じ計算になる）。1時間ごとに計算し直す。
+let HOME=null, homeAt=0;
+async function updateHome(){
+  if(Date.now()-homeAt<3600000&&HOME) return; homeAt=Date.now();
+  const to=Math.floor(Date.now()/1000), r=await get('/messages?data='+encodeURIComponent(JSON.stringify({from:to-7*86400,to,fields:'timestamp,position.latitude,position.longitude,position.valid'})));
+  const ok=x=>x['position.latitude']&&x['position.valid']!==false, rest=[]; let last=null;
+  for(let i=0;i<r.length-1;i++){ if(ok(r[i])) last=r[i]; if(last&&r[i+1].timestamp-r[i].timestamp>=600&&r[i].timestamp-last.timestamp<1800) rest.push([last['position.latitude'],last['position.longitude']]) }
+  if(rest.length<10) return;   // 記録が少ないうちは判定しない
+  const med=a=>{const b=[...a].sort((x,y)=>x-y);return b[Math.floor(b.length/2)]};
+  const h=L.latLng(med(rest.map(p=>p[0])),med(rest.map(p=>p[1])));
+  if(!HOME||map.distance(HOME,h)>1){ HOME=h; if(isToday){ drawTrail(trailPts,trailTs); layoutTimes() } }
+}
+try{ localStorage.removeItem('catmon.home') }catch(e){}   // 手入力していた頃の値を消す
 
 const map=L.map('map',{zoomControl:false,attributionControl:true}).setView([35.68,139.76],5);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; OpenStreetMap contributors'}).addTo(map);
@@ -255,6 +256,7 @@ function paint(){
 async function tick(force){
   if(!token){showSetup();return}
   try{
+    await updateHome().catch(()=>{});
     const t=(await get('/telemetry/position.latitude,position.longitude,position.valid,timestamp,server.timestamp,battery.level,event.code'))[0];
     const tel=(t&&t.telemetry)||{}; const v=k=>tel[k]&&tel[k].value;
     lastServer=v('server.timestamp')||v('timestamp')||0;
