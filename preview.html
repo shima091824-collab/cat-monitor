@@ -59,7 +59,7 @@
     <div class="row"><span class="k">最後の受信</span><span class="v" id="ago">—</span></div>
     <div class="row"><span class="k">位置の時刻</span><span class="v" id="ptime">—</span></div>
     <div class="row"><span class="k">電池</span><span class="v" id="bat">—</span></div>
-    <div class="row"><span class="k">電池の残り</span><span class="v" id="batleft" style="font-size:4vh">—</span></div>
+    <div class="row"><span class="k" style="white-space:nowrap">電池の残り</span><span class="v" id="batleft" style="font-size:4vh">—</span></div>
     <div class="row"><span class="k">状態</span><span class="v" id="mov">—</span></div>
     <div id="dayLabel">今日の軌跡</div>
     <div id="days"><button id="prev">◀ 前の日</button><button id="today">今日</button><button id="next">次の日 ▶</button></div>
@@ -237,7 +237,7 @@ async function batLeft(now){
   let sxy=0,sxx=0; for(let i=0;i<n;i++){ sxy+=(xs[i]-mx)*(ys[i]-my); sxx+=(xs[i]-mx)**2 }
   const rate=-sxy/sxx; if(!(rate>0.2)){ el.textContent='ほぼ減っていない'; return }
   const left=now/rate;
-  el.textContent='約'+Math.floor(left)+'時間（'+rate.toFixed(1)+'%/時）';
+  el.innerHTML='約'+Math.floor(left)+'時間<span style="font-size:2.4vh;color:var(--muted)">（'+rate.toFixed(1)+'%/時）</span>';
 }
 tick(); setInterval(tick,10000); setInterval(paint,1000);
 </script>
