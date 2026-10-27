@@ -63,7 +63,7 @@
     <div class="row"><span class="k">状態</span><span class="v" id="mov">—</span></div>
     <div id="dayLabel">今日の軌跡</div>
     <div id="days"><button id="prev">◀ 前の日</button><button id="today">今日</button><button id="next">次の日 ▶</button></div>
-    <div class="note">線＝選んだ日（0〜24時）の動き。色は <span style="color:#ffc2a8">■</span>朝→<span style="color:#e8452a">■</span>昼→<span style="color:#7a1408">■</span>夜。<span style="color:#7fb3ff">◯</span>＝家（中は線を引かない）。時刻は家の外の動き、拡大すると増えます。今日の線は0時に消えます（flespi に約1年残る）。家の中では送信が止まることがあります。</div>
+    <div class="note">線＝選んだ日（0〜24時）の動き。色は <span style="color:#ffb88c">■</span>早い時刻→<span style="color:#8c140a">■</span>遅い時刻。<span style="color:#7fb3ff">◯</span>＝家（中は線を引かない）。時刻は家の外の動き、拡大すると増えます。今日の線は0時に消えます（flespi に約1年残る）。家の中では送信が止まることがあります。</div>
     
     <button id="reset">トークンを入れ直す</button>
   </div>
@@ -95,27 +95,43 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,att
 const marker=L.marker([0,0],{icon:L.divIcon({className:'',html:'<div class="catdot"></div>',iconSize:[26,26],iconAnchor:[13,13]})});
 const trailLayer=L.layerGroup().addTo(map);
 // 家（その日いちばん長くいた場所）から HOME_M 以内は線を引かず、薄い円だけ描く（屋内の GPS のばらつきでトゲトゲになるため）
-// 線の色を時刻で変える（0時＝薄い → 24時＝濃い）。1時間ごとに1本の線にまとめる（点ごとに線を作ると Fire TV で重い）
-const hourColor=h=>{const t=h/23, a=[255,194,168], b=[232,69,42], c=[122,20,8]; const m=(x,y,u)=>Math.round(x+(y-x)*u);
+// 10/27 オーナー指摘「見栄えがよくない」→ ①円に出入りする線は円の縁で切る（円の中に線の切れ端を残さない）
+// ②色はその日の外出の最初→最後で 薄→濃（0〜24時だと夕方だけの日は全部同じ色になった） ③前後3点の平均でギザギザをならす
+const spanColor=t=>{const a=[255,184,140], b=[240,80,40], c=[140,20,10]; const m=(x,y,u)=>Math.round(x+(y-x)*u);
   const [p,q,u]=t<.5?[a,b,t*2]:[b,c,(t-.5)*2]; return 'rgb('+m(p[0],q[0],u)+','+m(p[1],q[1],u)+','+m(p[2],q[2],u)+')'};
-const jstHour=t=>Math.floor(((t+9*3600)%86400)/3600);
+const NCOL=8;   // 色の段階（線の本数＝段階数×外出回数。Fire TV の負荷を抑える）
 function drawTrail(pts,ts){
   trailLayer.clearLayers(); if(!pts.length) return;
   const med=a=>{const b=[...a].sort((x,y)=>x-y);return b[Math.floor(b.length/2)]};
   const home=L.latLng(med(pts.map(p=>p[0])),med(pts.map(p=>p[1])));
-  L.circle(home,{radius:HOME_M,color:'#7fb3ff',weight:2,fillColor:'#7fb3ff',fillOpacity:.15,dashArray:'6 6'}).addTo(trailLayer);
-  const byHour={}; let seg=null, segH=-1;
+  L.circle(home,{radius:HOME_M,color:'#6fa8ff',weight:2,opacity:.7,fill:true,fillColor:'#6fa8ff',fillOpacity:.07,dashArray:'4 8'}).addTo(trailLayer);
+  // 家を原点にしたメートル座標（円との交点を求めるため）
+  const kx=111320*Math.cos(home.lat*Math.PI/180), ky=110540;
+  const toXY=p=>[(p[1]-home.lng)*kx,(p[0]-home.lat)*ky], toLL=q=>[home.lat+q[1]/ky, home.lng+q[0]/kx];
+  const edge=(a,b)=>{ // a（円の中）→ b（円の外）の線が円の縁と交わる点
+    const A=toXY(a), B=toXY(b), dx=B[0]-A[0], dy=B[1]-A[1];
+    const qa=dx*dx+dy*dy, qb=2*(A[0]*dx+A[1]*dy), qc=A[0]*A[0]+A[1]*A[1]-HOME_M*HOME_M;
+    const t=(-qb+Math.sqrt(Math.max(0,qb*qb-4*qa*qc)))/(2*qa||1); return toLL([A[0]+dx*t,A[1]+dy*t]) };
   const isOut=pts.map(p=>map.distance(home,p)>=HOME_M);
+  // 外にいる区間（外出）ごとに、前後3点の平均でならした線を作る
+  const trips=[]; let cur=null;
   pts.forEach((p,i)=>{
-    const out=isOut[i], h=jstHour(ts[i]);
-    // 家の円に出入りする1本だけは線を残す（円の外の線が途切れないように）
-    if(!out){ if(seg){ seg.push(p); seg=null } return }
-    if(!seg&&i>0&&!isOut[i-1]){ segH=h; seg=[pts[i-1]]; (byHour[h]=byHour[h]||[]).push(seg) }
-    if(seg&&h!==segH){ seg.push(p) }              // 時間の境目は次の色の線とつなぐ
-    if(!seg||h!==segH){ seg=seg&&h!==segH?[seg[seg.length-1]]:[]; segH=h; (byHour[h]=byHour[h]||[]).push(seg) }
-    seg.push(p);
+    if(!isOut[i]){ if(cur){ cur.p.push(edge(p,cur.p[cur.p.length-1])); cur.t.push(ts[i]); trips.push(cur); cur=null } return }
+    if(!cur){ cur={p:[],t:[]}; if(i>0){ cur.p.push(edge(pts[i-1],p)); cur.t.push(ts[i-1]) } }
+    cur.p.push(p); cur.t.push(ts[i]);
   });
-  for(const h in byHour) L.polyline(byHour[h],{color:hourColor(+h),weight:5,opacity:.9}).addTo(trailLayer);
+  if(cur) trips.push(cur);
+  const outTs=trips.flatMap(r=>r.t); if(!outTs.length) return;
+  const t0=Math.min(...outTs), t1=Math.max(...outTs), span=Math.max(1,t1-t0);
+  for(const r of trips){
+    const P=r.p.map((p,i,a)=>{ if(i===0||i===a.length-1) return p;   // 両端（円の縁）は動かさない
+      return [(a[i-1][0]+p[0]+a[i+1][0])/3,(a[i-1][1]+p[1]+a[i+1][1])/3] });
+    let k0=0, c0=Math.min(NCOL-1,Math.floor((r.t[0]-t0)/span*NCOL));
+    for(let i=1;i<=P.length;i++){
+      const c=i<P.length?Math.min(NCOL-1,Math.floor((r.t[i]-t0)/span*NCOL)):-1;
+      if(c!==c0){ L.polyline(P.slice(k0,i+(i<P.length?1:0)),{color:spanColor((c0+.5)/NCOL),weight:4.5,opacity:.95,lineJoin:'round',lineCap:'round'}).addTo(trailLayer); k0=i; c0=c }
+    }
+  }
 }
 let first=true, lastServer=0;
 let trailDay=0, trailPts=[], trailTs=[], trailLast=0, viewDay=null, isToday=true;
