@@ -12,16 +12,16 @@
   html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);font-family:"Hiragino Sans","Noto Sans JP",sans-serif}
   #app{display:flex;height:100%}
   #map{flex:1 1 auto;height:100%}
-  #side{width:30%;min-width:320px;box-sizing:border-box;padding:2.2vh 2vw;background:var(--panel);display:flex;flex-direction:column;gap:1.3vh}
+  #side{width:30%;min-width:320px;box-sizing:border-box;padding:2.2vh 2vw;background:var(--panel);display:flex;flex-direction:column;gap:1.1vh}
   .title{font-size:2.8vh;color:var(--muted)}
   #status{border-radius:1.6vh;padding:1.6vh 1.6vw;font-size:4.2vh;font-weight:700;text-align:center}
   .ok{background:var(--ok)} .warn{background:var(--warn)} .bad{background:var(--bad)}
   .row{display:flex;justify-content:space-between;align-items:baseline;border-bottom:1px solid #333;padding-bottom:.8vh}
-  .row .k{font-size:3vh;color:var(--muted)} .row .v{font-size:4.4vh;font-weight:700}
+  .row .k{font-size:2.7vh;color:var(--muted)} .row .v{font-size:4vh;font-weight:700}
   #days{display:flex;gap:.8vw;align-items:center}
   #days button{flex:1;font-size:2.6vh;padding:1.2vh .4vw;border-radius:1vh;border:0;background:#333;color:#fff}
   #days button:focus{outline:4px solid #ffd54a}
-  #dayLabel{font-size:3.4vh;font-weight:700;text-align:center}
+  #dayLabel{font-size:3vh;font-weight:700;text-align:center}
   .past{color:#ffd54a}
   /* Fire TV のリモコン用：地図の上の大きなボタン（タッチもマウスもない端末で移動・拡大縮小） */
   #mapwrap{position:relative;flex:1 1 auto;height:100%}
@@ -33,7 +33,7 @@
   .tlabel{background:rgba(20,20,20,.85);color:#fff;border:0;border-radius:6px;font-size:1.7vh;font-weight:700;padding:2px 6px;box-shadow:none}
   .tlabel:before{display:none}
   .rlabel{position:absolute;transform:translate(-50%,-135%);white-space:nowrap;background:#fff;color:#2f6fd6;border:2px solid #6fa8ff;border-radius:999px;font-size:1.5vh;font-weight:700;padding:1px 8px}
-  .note{font-size:2.1vh;color:var(--muted);line-height:1.4}
+  .note{font-size:2vh;color:var(--muted);line-height:1.35}
   #setup{position:fixed;inset:0;z-index:10000;box-sizing:border-box;background:var(--bg);display:none;flex-direction:column;align-items:center;justify-content:center;gap:3vh;padding:4vw;text-align:center}
   #setup input{box-sizing:border-box;font-size:3.6vh;width:100%;max-width:1200px;padding:1.6vh;border-radius:1vh;border:2px solid #555;background:#000;color:#fff}
   #setup button,#reset{font-size:3.6vh;padding:1.4vh 3vw;border-radius:1vh;border:0;background:#3a6fd8;color:#fff}
@@ -81,8 +81,8 @@
     <div class="row"><span class="k">状態</span><span class="v" id="mov">—</span></div>
     <div id="dayLabel">今日の軌跡</div>
     <div id="days"><button id="prev">◀ 前の日</button><button id="today">今日</button><button id="next">次の日 ▶</button></div>
-    <div class="note" id="rule" style="color:#ffb3a8;border:1px solid #6d3a33;border-radius:1vh;padding:.8vh 1vw"><b>異常の条件</b>：家（中心から30m）の外で、40分以上受信なし（＝動きなし）。両方そろうと赤い帯と回転灯が出ます。家の中で受信がないのは正常（寝ている）です。</div>
-    <div class="note" id="help">線＝選んだ日（0〜24時）の動き。色は <span style="color:#ffb88c">■</span>早い時刻→<span style="color:#8c140a">■</span>遅い時刻。<span style="color:#7fb3ff">◯</span>＝家（中は線を引かない）。時刻は家の外の動き、拡大すると増えます。今日の線は0時に消えます（flespi に約1年残る）。家の中では送信が止まることがあります。</div>
+    <div class="note" id="rule" style="color:#ffb3a8;border:1px solid #6d3a33;border-radius:1vh;padding:.6vh 1vw"><b>異常の条件</b>：家（中心から30m）の外で、40分以上 受信なし（動きなし）→ 赤い帯と回転灯。家の中で受信なしは正常（寝ている）。</div>
+    <div class="note" id="help">線＝その日の動き（<span style="color:#ffb88c">■</span>早い→<span style="color:#8c140a">■</span>遅い時刻）。<span style="color:#7fb3ff">◯</span>＝家（中は線なし）。時刻は家の外の動き、拡大で増えます。0時に消えます（flespi に約1年残る）。</div>
     <div class="note" id="homeWarn" style="display:none;color:#ffd54a">家の位置を計算中のため、異常の判定はまだ止まっています。</div>
     <div style="display:flex;gap:1vw;margin-top:auto"><button id="reset">トークンを入れ直す</button></div>
   </div>
