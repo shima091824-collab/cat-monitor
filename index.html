@@ -38,7 +38,13 @@
   #setup input{box-sizing:border-box;font-size:3.6vh;width:100%;max-width:1200px;padding:1.6vh;border-radius:1vh;border:2px solid #555;background:#000;color:#fff}
   #setup button,#reset{font-size:3.6vh;padding:1.4vh 3vw;border-radius:1vh;border:0;background:#3a6fd8;color:#fff}
   #setup button:focus,#reset:focus,#setup input:focus{outline:4px solid #ffd54a}
-  #reset{background:#333;font-size:1.9vh;padding:.7vh 1.2vw;align-self:flex-start;margin-top:auto}
+  #reset,.resetlike{background:#333;font-size:1.9vh;padding:.7vh 1.2vw;border-radius:1vh;border:0;color:#fff}
+  .resetlike:focus{outline:4px solid #ffd54a}
+  .home{background:#3c5a78}
+  .alarm{background:var(--bad);animation:blink 1s steps(2,start) infinite}
+  @keyframes blink{to{background:#6d1a12}}
+  #alarmInfo{display:none;font-size:2.6vh;font-weight:700;color:#ffb3a8;line-height:1.4}
+  .catdot.alarm-dot{box-shadow:0 0 0 10px rgba(192,57,43,.55),0 0 0 22px rgba(192,57,43,.25)}
   .catdot{width:26px;height:26px;border-radius:50%;background:#ff5a36;border:4px solid #fff;box-shadow:0 0 0 6px rgba(255,90,54,.35)}
   @media (max-width:800px){#app{flex-direction:column}#side{width:100%;min-width:0}#mapwrap{flex:none;height:60%}}
 </style>
@@ -57,6 +63,7 @@
   <div id="side">
     <div class="title">ねこモニター（MT710）</div>
     <div id="status" class="warn">読み込み中…</div>
+    <div id="alarmInfo"></div>
     <div class="row"><span class="k">最後の受信</span><span class="v" id="ago">—</span></div>
     <div class="row"><span class="k">位置の時刻</span><span class="v" id="ptime">—</span></div>
     <div class="row"><span class="k">電池</span><span class="v" id="bat">—</span></div>
@@ -65,8 +72,8 @@
     <div id="dayLabel">今日の軌跡</div>
     <div id="days"><button id="prev">◀ 前の日</button><button id="today">今日</button><button id="next">次の日 ▶</button></div>
     <div class="note">線＝選んだ日（0〜24時）の動き。色は <span style="color:#ffb88c">■</span>早い時刻→<span style="color:#8c140a">■</span>遅い時刻。<span style="color:#7fb3ff">◯</span>＝家（中は線を引かない）。時刻は家の外の動き、拡大すると増えます。今日の線は0時に消えます（flespi に約1年残る）。家の中では送信が止まることがあります。</div>
-    
-    <button id="reset">トークンを入れ直す</button>
+    <div class="note" id="homeWarn" style="display:none;color:#ffd54a">家の位置が未設定のため、異常の判定は止まっています（下の「家の位置」から設定）。</div>
+    <div style="display:flex;gap:1vw;margin-top:auto"><button id="reset">トークンを入れ直す</button><button id="homeBtn" class="resetlike">家の位置</button></div>
   </div>
 </div>
 <div id="setup">
@@ -74,6 +81,12 @@
   <input id="tok" type="text" autocomplete="off" spellcheck="false" placeholder="トークン（64文字）">
   <button id="save">保存して表示</button>
   <div class="note">トークンはこのテレビのブラウザの中だけに保存されます。</div>
+</div>
+<div id="homeset" style="position:fixed;inset:0;z-index:10000;background:var(--bg);display:none;flex-direction:column;align-items:center;justify-content:center;gap:3vh;padding:4vw;text-align:center">
+  <div style="font-size:4vh">家の位置（緯度,経度）を入力してください</div>
+  <input id="homein" type="text" autocomplete="off" spellcheck="false" placeholder="例：35.000000,139.000000" style="box-sizing:border-box;font-size:3.6vh;width:100%;max-width:1200px;padding:1.6vh;border-radius:1vh;border:2px solid #555;background:#000;color:#fff">
+  <div style="display:flex;gap:2vw"><button id="homesave" style="font-size:3.6vh;padding:1.4vh 3vw;border-radius:1vh;border:0;background:#3a6fd8;color:#fff">保存</button><button id="homecancel" style="font-size:3.6vh;padding:1.4vh 3vw;border-radius:1vh;border:0;background:#333;color:#fff">やめる</button></div>
+  <div class="note">家の位置はこのブラウザの中だけに保存され、公開ページには書かれません。</div>
 </div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script>
@@ -90,6 +103,15 @@ function showSetup(){ $('setup').style.display='flex'; $('tok').focus() }
 $('save').onclick=()=>{const v=$('tok').value.trim(); if(v.length<20) return; token=v; store(v); $('setup').style.display='none'; tick(true)};
 $('tok').addEventListener('keydown',e=>{if(e.key==='Enter') $('save').click()});
 $('reset').onclick=()=>{ $('tok').value=''; showSetup() };
+// 家の位置（10/27：家と物置の中間をオーナーと決定）。公開ページに書かないため、各端末のブラウザに保存する。URL の #h=緯度,経度 でも受け取れる
+const KEYH='catmon.home';
+function parseHome(v){ const m=String(v||'').match(/^\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*$/); return m?L.latLng(+m[1],+m[2]):null }
+let HOME=null; try{ HOME=parseHome(localStorage.getItem(KEYH)) }catch(e){}
+const mh=location.hash.match(/h=(-?[\d.]+,-?[\d.]+)/); if(mh&&parseHome(mh[1])){ HOME=parseHome(mh[1]); try{localStorage.setItem(KEYH,mh[1])}catch(e){} history.replaceState(null,'',location.pathname) }
+$('homeBtn').onclick=()=>{ $('homein').value=HOME?HOME.lat.toFixed(6)+','+HOME.lng.toFixed(6):''; $('homeset').style.display='flex'; $('homein').focus() };
+$('homecancel').onclick=()=>{ $('homeset').style.display='none' };
+$('homesave').onclick=()=>{ const h=parseHome($('homein').value); if(!h) return; HOME=h; try{localStorage.setItem(KEYH,h.lat+','+h.lng)}catch(e){} $('homeset').style.display='none'; trailDay=0; tick(true) };
+$('homein').addEventListener('keydown',e=>{if(e.key==='Enter') $('homesave').click()});
 
 const map=L.map('map',{zoomControl:false,attributionControl:true}).setView([35.68,139.76],5);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; OpenStreetMap contributors'}).addTo(map);
@@ -104,7 +126,7 @@ const NCOL=8;   // 色の段階（線の本数＝段階数×外出回数。Fire 
 function drawTrail(pts,ts){
   trailLayer.clearLayers(); if(!pts.length) return;
   const med=a=>{const b=[...a].sort((x,y)=>x-y);return b[Math.floor(b.length/2)]};
-  const home=L.latLng(med(pts.map(p=>p[0])),med(pts.map(p=>p[1])));
+  const home=HOME||L.latLng(med(pts.map(p=>p[0])),med(pts.map(p=>p[1])));
   L.circle(home,{radius:HOME_M,color:'#6fa8ff',weight:2,opacity:.7,fill:true,fillColor:'#6fa8ff',fillOpacity:.07,dashArray:'4 8'}).addTo(trailLayer);
   // 家を原点にしたメートル座標（円との交点を求めるため）
   const kx=111320*Math.cos(home.lat*Math.PI/180), ky=110540;
@@ -153,7 +175,7 @@ function drawTimes(pts,ts){ tPts=pts; tTs=ts; layoutTimes() }
 function layoutTimes(){
   const pts=tPts, ts=tTs; timeLayer.clearLayers(); if(!pts.length) return;
   const med=a=>{const b=[...a].sort((x,y)=>x-y);return b[Math.floor(b.length/2)]};
-  const home=L.latLng(med(pts.map(p=>p[0])),med(pts.map(p=>p[1])));
+  const home=HOME||L.latLng(med(pts.map(p=>p[0])),med(pts.map(p=>p[1])));
   const cand=[0,pts.length-1]; let last=-1e12;
   pts.forEach((p,i)=>{ if(i===0||i===pts.length-1) return; if(map.distance(home,p)<HOME_M) return;
     if(ts[i]-last>=LABEL_MIN*60){ cand.push(i); last=ts[i] } });
@@ -204,13 +226,30 @@ async function get(path){
 }
 const hm=t=>new Date(t*1000).toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'});
 function agoText(s){ if(s<60) return Math.max(0,Math.round(s))+'秒前'; if(s<3600) return Math.floor(s/60)+'分前'; return Math.floor(s/3600)+'時間'+Math.floor(s%3600/60)+'分前' }
+// 異常の判定（10/27 オーナーと決定）：家の中心から ALARM_M の外で、ALARM_MIN 分以上受信なし＝動けないなどのトラブルの可能性。
+// MT710 は静止すると送信を止めるので「受信なし」≒「動いていない」。過去8日の家での40分超の空白37回は、中心から最大28m（30mで誤報0回）。
+// 地図の円（HOME_M=20m）は見た目用、判定は ALARM_M=30m。家の中で受信なしは正常（寝ている）なので赤にしない。
+const ALARM_M=30, ALARM_MIN=40, LOWBAT=15;
+let lastPos=null, lastPosTs=0, lastBat=null;
 function paint(){
   if(!lastServer) return;
-  const s=Date.now()/1000-lastServer, mins=s/60, st=$('status');
+  const s=Date.now()/1000-lastServer, mins=s/60, st=$('status'), info=$('alarmInfo');
   $('ago').textContent=agoText(s);
+  $('homeWarn').style.display=HOME?'none':'block';
+  const dist=(HOME&&lastPos)?Math.round(map.distance(HOME,lastPos)):null, out=dist!=null&&dist>ALARM_M;
+  const dot=document.querySelector('.catdot'); let alarm=false; info.style.display='none';
   if(mins<=GREEN_MIN){st.className='ok';st.textContent='受信中'}
+  else if(dist!=null&&!out){st.className='home';st.textContent='家で休んでいます'}
+  else if(out&&mins>=ALARM_MIN){
+    alarm=true; st.className='alarm'; st.textContent='異常：家の外で'+Math.floor(mins)+'分 動きなし';
+    info.style.display='block';
+    info.innerHTML='最後の場所：家から約'+dist+'m（'+hm(lastPosTs)+'）。地図の赤い点を確認してください。'+
+      (lastBat!=null&&lastBat<=LOWBAT?'<br>最後の電池が'+lastBat+'%：電池切れの可能性もあります。':'');
+  }
+  else if(out){st.className='warn';st.textContent='家の外で受信なし（'+Math.floor(mins)+'分）'}
   else if(mins<=RED_MIN){st.className='warn';st.textContent='しばらく受信なし'}
   else {st.className='bad';st.textContent='長い間 受信なし'}
+  if(dot) dot.classList.toggle('alarm-dot',alarm);
 }
 async function tick(force){
   if(!token){showSetup();return}
@@ -220,11 +259,12 @@ async function tick(force){
     lastServer=v('server.timestamp')||v('timestamp')||0;
     const lat=v('position.latitude'), lon=v('position.longitude');
     if(lat&&lon){
+      lastPos=L.latLng(lat,lon); lastPosTs=tel['position.latitude'].ts;
       marker.setLatLng([lat,lon]); if(!map.hasLayer(marker)) marker.addTo(map);
       if((first||force)&&isToday){map.setView([lat,lon],17);first=false}
       $('ptime').textContent=tel['position.latitude']?((tel['position.latitude'].ts<jstMidnight()?dayText(tel['position.latitude'].ts-((tel['position.latitude'].ts+9*3600)%86400)).replace(/\(.\)/,'')+' ':'')+hm(tel['position.latitude'].ts)):'—';
     }
-    const b=v('battery.level'); $('bat').textContent=(b!=null?b+'%':'—');
+    const b=v('battery.level'); lastBat=b; $('bat').textContent=(b!=null?b+'%':'—');
     const ev=v('event.code'); $('mov').textContent=ev==='STILL'?'静止':(ev==='AUTO'?'移動中':(ev||'—'));
     // 軌跡：今日を見ているときは 0:00 から、2回目からは前回の続きだけ読む。日付が変わったら今日に切り替えて描き直す
     const day0=jstMidnight();
