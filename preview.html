@@ -105,9 +105,12 @@ function drawTrail(pts,ts){
   const home=L.latLng(med(pts.map(p=>p[0])),med(pts.map(p=>p[1])));
   L.circle(home,{radius:HOME_M,color:'#7fb3ff',weight:2,fillColor:'#7fb3ff',fillOpacity:.15,dashArray:'6 6'}).addTo(trailLayer);
   const byHour={}; let seg=null, segH=-1;
+  const isOut=pts.map(p=>map.distance(home,p)>=HOME_M);
   pts.forEach((p,i)=>{
-    const out=map.distance(home,p)>=HOME_M, h=jstHour(ts[i]);
-    if(!out){ seg=null; return }
+    const out=isOut[i], h=jstHour(ts[i]);
+    // 家の円に出入りする1本だけは線を残す（円の外の線が途切れないように）
+    if(!out){ if(seg){ seg.push(p); seg=null } return }
+    if(!seg&&i>0&&!isOut[i-1]){ segH=h; seg=[pts[i-1]]; (byHour[h]=byHour[h]||[]).push(seg) }
     if(seg&&h!==segH){ seg.push(p) }              // 時間の境目は次の色の線とつなぐ
     if(!seg||h!==segH){ seg=seg&&h!==segH?[seg[seg.length-1]]:[]; segH=h; (byHour[h]=byHour[h]||[]).push(seg) }
     seg.push(p);
@@ -224,13 +227,16 @@ async function batLeft(now){
   if(Date.now()-batAt<300000) return; batAt=Date.now();
   const to=Math.floor(Date.now()/1000), msgs=await get('/messages?data='+encodeURIComponent(JSON.stringify({from:to-6*3600,to,fields:'timestamp,battery.level'})));
   const s=msgs.filter(x=>x['battery.level']!=null);
-  // 充電で増えたところより後だけを使う（充電中の記録を混ぜない）
-  let k=0; for(let i=1;i<s.length;i++) if(s[i]['battery.level']>s[i-1]['battery.level']+1) k=i;
+  // 電池の値は ±2〜3% 上下する（10/27 実測）。充電とみなすのは、それまでの最低値から 10% 以上上がったときだけ。その後の記録を使う
+  let k=0, lo=1e9; for(let i=0;i<s.length;i++){ const v=s[i]['battery.level']; if(v>=lo+10){ k=i; lo=v } lo=Math.min(lo,v) }
   const u=s.slice(k); const el=$('batleft');
-  if(u.length<2||u[u.length-1].timestamp-u[0].timestamp<3600){ el.textContent='計算中'; return }
-  const hrs=(u[u.length-1].timestamp-u[0].timestamp)/3600, drop=u[0]['battery.level']-u[u.length-1]['battery.level'];
-  if(drop<=0){ el.textContent='減っていない'; return }
-  const rate=drop/hrs, left=now/rate;
+  if(u.length<10||u[u.length-1].timestamp-u[0].timestamp<3600){ el.textContent='計算中'; return }
+  // 上下の揺れをならすため、全点に直線を当てはめた傾き（最小二乗）を使う
+  const n=u.length, xs=u.map(x=>(x.timestamp-u[0].timestamp)/3600), ys=u.map(x=>x['battery.level']);
+  const mx=xs.reduce((a,b)=>a+b)/n, my=ys.reduce((a,b)=>a+b)/n;
+  let sxy=0,sxx=0; for(let i=0;i<n;i++){ sxy+=(xs[i]-mx)*(ys[i]-my); sxx+=(xs[i]-mx)**2 }
+  const rate=-sxy/sxx; if(!(rate>0.2)){ el.textContent='ほぼ減っていない'; return }
+  const left=now/rate;
   el.textContent='約'+Math.floor(left)+'時間（'+rate.toFixed(1)+'%/時）';
 }
 tick(); setInterval(tick,10000); setInterval(paint,1000);
