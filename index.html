@@ -59,10 +59,12 @@
     <div class="row"><span class="k">最後の受信</span><span class="v" id="ago">—</span></div>
     <div class="row"><span class="k">位置の時刻</span><span class="v" id="ptime">—</span></div>
     <div class="row"><span class="k">電池</span><span class="v" id="bat">—</span></div>
+    <div class="row"><span class="k" style="white-space:nowrap">電池の残り</span><span class="v" id="batleft" style="font-size:4vh">—</span></div>
     <div class="row"><span class="k">状態</span><span class="v" id="mov">—</span></div>
     <div id="dayLabel">今日の軌跡</div>
     <div id="days"><button id="prev">◀ 前の日</button><button id="today">今日</button><button id="next">次の日 ▶</button></div>
-    <div class="note">赤い線＝選んだ日（0時〜24時）の動き。線の上の時刻は、家の周り（約60m）の外を動いたところ。拡大すると増えます。今日の線は0時になると消えます（データは flespi に約1年残ります）。10秒ごとに更新。<br>家の中で寝ている間は送信が止まることがあります（黄・赤でも異常とは限りません）。</div>
+    <div class="note">線＝選んだ日（0〜24時）の動き。色は <span style="color:#ffc2a8">■</span>朝→<span style="color:#e8452a">■</span>昼→<span style="color:#7a1408">■</span>夜。<span style="color:#7fb3ff">◯</span>＝家（中は線を引かない）。時刻は家の外の動き、拡大すると増えます。今日の線は0時に消えます（flespi に約1年残る）。家の中では送信が止まることがあります。</div>
+    
     <button id="reset">トークンを入れ直す</button>
   </div>
 </div>
@@ -91,7 +93,30 @@ $('reset').onclick=()=>{ $('tok').value=''; showSetup() };
 const map=L.map('map',{zoomControl:false,attributionControl:true}).setView([35.68,139.76],5);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; OpenStreetMap contributors'}).addTo(map);
 const marker=L.marker([0,0],{icon:L.divIcon({className:'',html:'<div class="catdot"></div>',iconSize:[26,26],iconAnchor:[13,13]})});
-const trail=L.polyline([],{color:'#ff5a36',weight:5,opacity:.8}).addTo(map);
+const trailLayer=L.layerGroup().addTo(map);
+// 家（その日いちばん長くいた場所）から HOME_M 以内は線を引かず、薄い円だけ描く（屋内の GPS のばらつきでトゲトゲになるため）
+// 線の色を時刻で変える（0時＝薄い → 24時＝濃い）。1時間ごとに1本の線にまとめる（点ごとに線を作ると Fire TV で重い）
+const hourColor=h=>{const t=h/23, a=[255,194,168], b=[232,69,42], c=[122,20,8]; const m=(x,y,u)=>Math.round(x+(y-x)*u);
+  const [p,q,u]=t<.5?[a,b,t*2]:[b,c,(t-.5)*2]; return 'rgb('+m(p[0],q[0],u)+','+m(p[1],q[1],u)+','+m(p[2],q[2],u)+')'};
+const jstHour=t=>Math.floor(((t+9*3600)%86400)/3600);
+function drawTrail(pts,ts){
+  trailLayer.clearLayers(); if(!pts.length) return;
+  const med=a=>{const b=[...a].sort((x,y)=>x-y);return b[Math.floor(b.length/2)]};
+  const home=L.latLng(med(pts.map(p=>p[0])),med(pts.map(p=>p[1])));
+  L.circle(home,{radius:HOME_M,color:'#7fb3ff',weight:2,fillColor:'#7fb3ff',fillOpacity:.15,dashArray:'6 6'}).addTo(trailLayer);
+  const byHour={}; let seg=null, segH=-1;
+  const isOut=pts.map(p=>map.distance(home,p)>=HOME_M);
+  pts.forEach((p,i)=>{
+    const out=isOut[i], h=jstHour(ts[i]);
+    // 家の円に出入りする1本だけは線を残す（円の外の線が途切れないように）
+    if(!out){ if(seg){ seg.push(p); seg=null } return }
+    if(!seg&&i>0&&!isOut[i-1]){ segH=h; seg=[pts[i-1]]; (byHour[h]=byHour[h]||[]).push(seg) }
+    if(seg&&h!==segH){ seg.push(p) }              // 時間の境目は次の色の線とつなぐ
+    if(!seg||h!==segH){ seg=seg&&h!==segH?[seg[seg.length-1]]:[]; segH=h; (byHour[h]=byHour[h]||[]).push(seg) }
+    seg.push(p);
+  });
+  for(const h in byHour) L.polyline(byHour[h],{color:hourColor(+h),weight:5,opacity:.9}).addTo(trailLayer);
+}
 let first=true, lastServer=0;
 let trailDay=0, trailPts=[], trailTs=[], trailLast=0, viewDay=null, isToday=true;
 // 軌跡に時刻の目印（10/27 オーナー指摘：家の周りで札が重なる → 減らしすぎ → もう少し出したい）
@@ -128,7 +153,7 @@ async function loadPast(d){
   const msgs=await get('/messages?data='+encodeURIComponent(JSON.stringify({from:d,to:d+86399,fields:'timestamp,position.latitude,position.longitude,position.valid'})));
   const ok=msgs.filter(x=>x['position.latitude']&&x['position.valid']!==false);
   const pts=ok.map(x=>[x['position.latitude'],x['position.longitude']]);
-  trail.setLatLngs(pts); drawTimes(pts,ok.map(x=>x.timestamp)); if(pts.length) map.fitBounds(trail.getBounds(),{padding:[40,40],maxZoom:18});
+  drawTrail(pts,ok.map(x=>x.timestamp)); drawTimes(pts,ok.map(x=>x.timestamp)); if(pts.length) map.fitBounds(L.latLngBounds(pts),{padding:[40,40],maxZoom:18});
   showDayLabel(); if(!pts.length) $('dayLabel').textContent=dayText(d)+'：記録なし';
 }
 async function goDay(delta){
@@ -183,17 +208,36 @@ async function tick(force){
     if(viewDay===null||(viewDay===trailDay&&day0!==trailDay&&viewDay>=day0-86400&&isToday)) viewDay=day0;
     isToday=(viewDay===day0);
     if(isToday){
-      if(trailDay!==day0){trailDay=day0; trailPts=[]; trailTs=[]; trailLast=day0-1; timeLayer.clearLayers()}
+      if(trailDay!==day0){trailDay=day0; trailPts=[]; trailTs=[]; trailLast=day0-1; timeLayer.clearLayers(); trailLayer.clearLayers()}
       const msgs=await get('/messages?data='+encodeURIComponent(JSON.stringify({from:trailLast+1,fields:'timestamp,position.latitude,position.longitude,position.valid'})));
       for(const x of msgs){ if(x.timestamp>trailLast) trailLast=x.timestamp; if(x['position.latitude']&&x['position.valid']!==false){ trailPts.push([x['position.latitude'],x['position.longitude']]); trailTs.push(x.timestamp) } }
-      trail.setLatLngs(trailPts); if(msgs.length||!timeLayer.getLayers().length) drawTimes(trailPts,trailTs);
+      if(msgs.length||!timeLayer.getLayers().length){ drawTrail(trailPts,trailTs); drawTimes(trailPts,trailTs) }
     }
+    if(b!=null) batLeft(b).catch(()=>{});
     showDayLabel();
     paint();
   }catch(e){
     if(e.message==='auth'){ $('status').className='bad'; $('status').textContent='トークンが使えません'; showSetup() }
     else { $('status').className='bad'; $('status').textContent='通信エラー（再試行中）' }
   }
+}
+// 電池の残り時間。直近6時間の電池残量（flespi の記録）から、減っている区間だけで 1時間あたりの減りを求める。5分に1回だけ計算
+let batAt=0;
+async function batLeft(now){
+  if(Date.now()-batAt<300000) return; batAt=Date.now();
+  const to=Math.floor(Date.now()/1000), msgs=await get('/messages?data='+encodeURIComponent(JSON.stringify({from:to-6*3600,to,fields:'timestamp,battery.level'})));
+  const s=msgs.filter(x=>x['battery.level']!=null);
+  // 電池の値は ±2〜3% 上下する（10/27 実測）。充電とみなすのは、それまでの最低値から 10% 以上上がったときだけ。その後の記録を使う
+  let k=0, lo=1e9; for(let i=0;i<s.length;i++){ const v=s[i]['battery.level']; if(v>=lo+10){ k=i; lo=v } lo=Math.min(lo,v) }
+  const u=s.slice(k); const el=$('batleft');
+  if(u.length<10||u[u.length-1].timestamp-u[0].timestamp<3600){ el.textContent='計算中'; return }
+  // 上下の揺れをならすため、全点に直線を当てはめた傾き（最小二乗）を使う
+  const n=u.length, xs=u.map(x=>(x.timestamp-u[0].timestamp)/3600), ys=u.map(x=>x['battery.level']);
+  const mx=xs.reduce((a,b)=>a+b)/n, my=ys.reduce((a,b)=>a+b)/n;
+  let sxy=0,sxx=0; for(let i=0;i<n;i++){ sxy+=(xs[i]-mx)*(ys[i]-my); sxx+=(xs[i]-mx)**2 }
+  const rate=-sxy/sxx; if(!(rate>0.2)){ el.textContent='ほぼ減っていない'; return }
+  const left=now/rate;
+  el.innerHTML='約'+Math.floor(left)+'時間<span style="font-size:2.4vh;color:var(--muted)">（'+rate.toFixed(1)+'%/時）</span>';
 }
 tick(); setInterval(tick,10000); setInterval(paint,1000);
 </script>
