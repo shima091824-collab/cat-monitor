@@ -284,7 +284,7 @@ function paint(){
   if(dot) dot.classList.toggle('alarm-dot',alarm);
   const ab=$('ackBtn'), wasHidden=ab.style.display==='none'; ab.style.display=alarm?'block':'none'; if(alarm&&wasHidden) ab.focus();   // リモコンの決定ボタンですぐ押せるように
   $('sirenBox').style.display=alarm?'block':'none';
-  $('help').style.display=alarm?'none':''; $('reset').style.display=alarm?'none':''; $('sample').style.display=alarm?'none':'';   // 異常のときは説明文を隠して、右欄を画面に収める
+  $('help').style.display=alarm?'none':''; $('reset').style.display=alarm?'none':''; $('rule').style.display=alarm?'none':'';   // 異常中は帯と回転灯そのものが出ているので、説明の枠は隠して画面に収める   // 異常のときは説明文を隠して、右欄を画面に収める
 }
 async function tick(force){
   if(!token){showSetup();return}
