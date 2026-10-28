@@ -63,8 +63,9 @@
   #sample{display:flex;align-items:center;gap:.8vw;margin-top:.6vh}
   #sampleSiren{width:4.5vh;flex:none}
   #sampleSiren svg{width:100%;display:block}
-  .sband{background:var(--bad);color:#fff;font-weight:700;font-size:1.8vh;padding:.4vh .8vw;border-radius:.8vh;white-space:nowrap}
+  .sband{background:var(--bad);color:#fff;font-weight:700;font-size:1.8vh;padding:.4vh .8vw;border-radius:.8vh;min-width:0}
   .slabel{font-size:1.8vh;color:var(--muted);white-space:nowrap}
+  @media (max-width:1400px){.slabel{display:none}}
   #alarmInfo{display:none;font-size:2.4vh;font-weight:700;color:#ffb3a8;line-height:1.4}
   .catdot.alarm-dot{box-shadow:0 0 0 10px rgba(192,57,43,.55),0 0 0 22px rgba(192,57,43,.25)}
   .catdot{width:26px;height:26px;border-radius:50%;background:#ff5a36;border:4px solid #fff;box-shadow:0 0 0 6px rgba(255,90,54,.35)}
