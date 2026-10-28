@@ -14,7 +14,7 @@
   #map{flex:1 1 auto;height:100%}
   #side{width:30%;min-width:320px;box-sizing:border-box;padding:2.2vh 2vw;background:var(--panel);display:flex;flex-direction:column;gap:1.1vh}
   .title{font-size:2.8vh;color:var(--muted)}
-  #status{border-radius:1.6vh;padding:1.6vh 1.6vw;font-size:4.2vh;font-weight:700;text-align:center}
+  #status{border-radius:1.6vh;padding:1.4vh 1.2vw;font-size:3.9vh;font-weight:700;text-align:center}
   .ok{background:var(--ok)} .warn{background:var(--warn)} .bad{background:var(--bad)}
   .row{display:flex;justify-content:space-between;align-items:baseline;border-bottom:1px solid #333;padding-bottom:.8vh}
   .row .k{font-size:2.7vh;color:var(--muted)} .row .v{font-size:4vh;font-weight:700}
@@ -277,7 +277,7 @@ function paint(){
     info.innerHTML='最後の場所：家から約'+dist+'m（'+hm(lastPosTs)+'）＝地図の赤い点'+
       (lastBat!=null&&lastBat<=LOWBAT?'<br>電池'+lastBat+'%：電池切れの可能性あり':'');
   }
-  else if(out){st.className='warn';st.textContent='家の外で受信なし（'+Math.floor(mins)+'分）'}
+  else if(out){st.className='warn';st.textContent='家の外で受信なし '+Math.floor(mins)+'分'}
   else if(mins<=RED_MIN){st.className='warn';st.textContent='しばらく受信なし'}
   else {st.className='bad';st.textContent='長い間 受信なし'}
   if(dot) dot.classList.toggle('alarm-dot',alarm);
