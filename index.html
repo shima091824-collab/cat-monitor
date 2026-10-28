@@ -63,9 +63,8 @@
   #sample{display:flex;align-items:center;gap:.8vw;margin-top:.6vh}
   #sampleSiren{width:4.5vh;flex:none}
   #sampleSiren svg{width:100%;display:block}
-  .sband{background:var(--bad);color:#fff;font-weight:700;font-size:1.8vh;padding:.4vh .8vw;border-radius:.8vh;min-width:0}
-  .slabel{font-size:1.8vh;color:var(--muted);white-space:nowrap}
-  @media (max-width:1400px){.slabel{display:none}}
+  .sband{background:var(--bad);color:#fff;font-weight:700;font-size:1.6vh;padding:.3vh .6vw;border-radius:.8vh;white-space:nowrap}
+  .slabel{font-size:1.6vh;color:var(--muted);white-space:nowrap}
   /* 10/28「確認しました」ボタン：その異常（最後の受信時刻で区別）を確認済みにして通常表示に戻す。新しい受信が来たら次の異常はまた出る。確認はこの端末だけ */
   #ackBtn{font-size:3vh;font-weight:700;padding:1.2vh 1vw;border-radius:1vh;border:0;background:#fff;color:#8b1d12}
   #ackBtn:focus{outline:5px solid #ffd54a}
@@ -98,7 +97,7 @@
     <div id="dayLabel">今日の軌跡</div>
     <div id="days"><button id="prev">◀ 前の日</button><button id="today">今日</button><button id="next">次の日 ▶</button></div>
     <div class="note" id="help">線＝その日の動き（<span style="color:#ffb88c">■</span>早い→<span style="color:#8c140a">■</span>遅い時刻）。<span style="color:#7fb3ff">◯</span>＝家（中は線なし）。時刻は家の外の動き、拡大で増えます。0時に消えます（flespi に約1年残る）。</div>
-    <div class="note" id="rule" style="color:#ffb3a8;border:1px solid #6d3a33;border-radius:1vh;padding:.6vh 1vw"><b>緊急確認のタイミング</b>：家（中心から30m）の外で、40分以上 受信なし（動きなし）のとき。赤い帯と回転灯が出たら、地図の赤い点へ見に行く。<div id="sample"><span id="sampleSiren"></span><span class="sband">異常：家の外で◯分 動きなし</span><span class="slabel">← この表示</span></div></div>
+    <div class="note" id="rule" style="color:#ffb3a8;border:1px solid #6d3a33;border-radius:1vh;padding:.6vh 1vw"><b>緊急確認のタイミング</b>：家（中心から30m）の外で、40分以上 受信なし（動きなし）のとき。赤い帯と回転灯が出たら、地図の赤い点へ見に行く。<div id="sample"><span id="sampleSiren"></span><span class="sband">異常：家の外で◯分 動きなし</span><span class="slabel">←この表示</span></div></div>
     <div class="note" id="homeWarn" style="display:none;color:#ffd54a">家の位置を計算中のため、異常の判定はまだ止まっています。</div>
     <div style="display:flex;gap:1vw;margin-top:auto"><button id="reset">トークンを入れ直す</button></div>
   </div>
