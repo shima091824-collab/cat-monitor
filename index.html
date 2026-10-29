@@ -260,7 +260,7 @@ function agoText(s){ if(s<60) return Math.max(0,Math.round(s))+'秒前'; if(s<36
 const ALARM_M=30, ALARM_MIN=40, LOWBAT=15;
 let ackServer=0; try{ ackServer=+localStorage.getItem('catmon.ack')||0 }catch(e){}
 $('ackBtn').onclick=()=>{ ackServer=lastServer; try{localStorage.setItem('catmon.ack',String(lastServer))}catch(e){} paint() };
-let lastPos=null, lastPosTs=0, lastBat=null;
+let lastPos=null, lastPosTs=0, lastBat=null, onCharger=false;
 function paint(){
   if(!lastServer) return;
   const s=Date.now()/1000-lastServer, mins=s/60, st=$('status'), info=$('alarmInfo');
@@ -269,6 +269,7 @@ function paint(){
   const dist=(HOME&&lastPos)?Math.round(map.distance(HOME,lastPos)):null, out=dist!=null&&dist>ALARM_M;
   const dot=document.querySelector('.catdot'); let alarm=false; info.style.display='none';
   if(mins<=GREEN_MIN){st.className='ok';st.textContent='受信中'}
+  else if(onCharger){st.className='home';st.textContent='充電器につながっています'}
   else if(dist!=null&&!out){st.className='home';st.textContent='家で休んでいます'}
   else if(out&&mins>=ALARM_MIN&&ackServer===lastServer){st.className='warn';st.textContent='確認済み：家の外で'+Math.floor(mins)+'分 受信なし'}
   else if(out&&mins>=ALARM_MIN){
@@ -289,7 +290,7 @@ async function tick(force){
   if(!token){showSetup();return}
   try{
     await updateHome().catch(()=>{});
-    const t=(await get('/telemetry/position.latitude,position.longitude,position.valid,timestamp,server.timestamp,battery.level,battery.charging.status,event.code'))[0];
+    const t=(await get('/telemetry/position.latitude,position.longitude,position.valid,timestamp,server.timestamp,battery.level,battery.voltage,battery.charging.status,event.code'))[0];
     const tel=(t&&t.telemetry)||{}; const v=k=>tel[k]&&tel[k].value;
     lastServer=v('server.timestamp')||v('timestamp')||0;
     const lat=v('position.latitude'), lon=v('position.longitude');
@@ -300,7 +301,11 @@ async function tick(force){
       $('ptime').textContent=tel['position.latitude']?((tel['position.latitude'].ts<jstMidnight()?dayText(tel['position.latitude'].ts-((tel['position.latitude'].ts+9*3600)%86400)).replace(/\(.\)/,'')+' ':'')+hm(tel['position.latitude'].ts)):'—';
     }
     const b=v('battery.level'); lastBat=b;
-    const chg=v('battery.charging.status')===true; $('battIcon').classList.toggle('charging',chg); $('battK').classList.toggle('charging',chg); $('battK').textContent=chg?'充電中':'電池残量';
+    const chg=v('battery.charging.status')===true;
+    // 10/29 満充電（FULL）になると充電器につないだままでも charging.status＝false が届く［実測：10/29 20:40 100%・4.187V で false］→ 40分後に誤報。
+    // 最後の受信が 100%・4.15V以上なら充電器の上とみなす（外せば送信が再開し、電圧も下がる）
+    const full=!chg&&b>=100&&(v('battery.voltage')||0)>=4.15; onCharger=chg||full;
+    $('battIcon').classList.toggle('charging',chg); $('battK').classList.toggle('charging',chg); $('battK').textContent=chg?'充電中':(full?'充電完了':'電池残量');
     // 10/28：充電中の MT710 は満充電（FULL）まで何も送らない［実測：10/26 07:36〜09:28 送信なし→FULL 100%］。
     // つないだ直後の％は充電器の電圧で高く出る（36%→4分後61%、3.72V→3.87V［実測］）ので、充電中は％の代わりに開始時刻を出す
     const chgTs=tel['battery.charging.status']&&tel['battery.charging.status'].ts;
