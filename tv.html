@@ -1,6 +1,7 @@
 <!doctype html>
 <html lang="ja">
 <head>
+<script>(function(){var q=[];function show(t){q.push(t);var d=document.getElementById("diag");if(d){d.style.display="block";d.innerHTML=q.join("<br>")}}window.onerror=function(m,u,l){show("エラー: "+m+" ("+String(u).split("/").pop()+" "+l+"行)");};window.__diagShow=show;})();</script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow">
@@ -937,6 +938,9 @@ function _tick() {
 tick();
 setInterval(tick, 10000);
 setInterval(paint, 1000);
+window.__ok=1;
 </script>
+<div id="diag" style="display:none;position:fixed;left:0;right:0;bottom:0;z-index:20000;background:#000;color:#0f0;font:2.4vh monospace;padding:1vh;word-break:break-all"></div>
+<script>window.__diagShow&&window.__diagShow("ブラウザ: "+navigator.userAgent);window.__diagShow&&window.__diagShow("版 tv3 / 本体の動作: "+(window.__ok?"OK":"止まっている"));</script>
 </body>
 </html>
