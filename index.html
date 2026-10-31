@@ -282,7 +282,7 @@ async function goDay(delta){
   viewDay=d; isToday=(d===today);
   try{
     if(isToday){ trailDay=0; await tick(true) } else await loadPast(d);
-  }catch(e){ $('dayLabel').textContent='読み込みに失敗しました' }
+  }catch(e){ $('dayLabel').textContent='読み込みに失敗しました'; if(window.__diagShow) window.__diagShow('goDay: '+e.message) }
 }
 // 地図の移動（画面の 1/3 ずつ）と拡大縮小、猫の位置へ戻る
 const panBy=(fx,fy)=>{const z=map.getSize(); map.panBy([z.x*fx/3,z.y*fy/3])};
@@ -373,7 +373,7 @@ async function tick(force){
     paint();
   }catch(e){
     if(e.message==='auth'){ $('status').className='bad'; $('status').textContent='トークンが使えません'; showSetup() }
-    else { $('status').className='bad'; $('status').textContent='通信エラー（再試行中）' }
+    else { $('status').className='bad'; $('status').textContent='通信エラー（再試行中）'; if(window.__diagShow) window.__diagShow('tick: '+e.message) }   // テレビ用の診断表示（tv.html のみ）
   }
 }
 // 10/27 「電池の残り」行は削除（オーナー：休んでいる間は減り方が変わり当てにならない）
