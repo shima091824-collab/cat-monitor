@@ -106,6 +106,7 @@
   #pad{display:block;width:24vh}
   #pad>*{float:left;width:7vh;height:7vh;margin:.4vh}
   #zoom button{margin-bottom:.8vh}
+  #pad,#zoom{bottom:9vh}
   #statusWrap #sirenBox{margin-right:1vw}
   #sample>*{margin:.3vh .4vw}
 </style>
@@ -1087,6 +1088,6 @@ setInterval(paint, 1000);
 window.__ok=1;
 </script>
 <div id="diag" style="display:none;position:fixed;left:0;right:0;bottom:0;z-index:20000;background:#000;color:#0f0;font:2.4vh monospace;padding:1vh;word-break:break-all"></div>
-<script>window.__diagShow&&window.__diagShow("ブラウザ: "+navigator.userAgent);window.__diagShow&&window.__diagShow("版 tv7 / 本体の動作: "+(window.__ok?"OK":"止まっている"));</script>
+<script>if(!window.__ok&&window.__diagShow){window.__diagShow("ブラウザ: "+navigator.userAgent);window.__diagShow("版 tv8 / 本体の動作: 止まっている")}</script>
 </body>
 </html>
