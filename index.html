@@ -129,6 +129,8 @@
 <div id="setup">
   <div style="font-size:4vh">はじめに flespi の「見るだけ」トークンを入力してください</div>
   <input id="tok" type="text" autocomplete="off" spellcheck="false" placeholder="トークン（64文字）">
+  <div id="tokCount" style="font-size:4vh;font-weight:700;color:#ffd54a">入力済み 0 / 64 文字</div>
+  <div id="tokShow" style="font-family:Menlo,Consolas,monospace;font-size:4.2vh;letter-spacing:.15em;line-height:1.5;word-break:break-all;max-width:1200px"></div>
   <button id="save">保存して表示</button>
   <div class="note">トークンはこのテレビのブラウザの中だけに保存されます。</div>
 </div>
@@ -145,8 +147,12 @@ let token=load(); let mem='';
 const m=location.hash.match(/t=([A-Za-z0-9]+)/); if(m){token=m[1];store(token);mem=token;history.replaceState(null,'',location.pathname)}
 if(!token&&mem) token=mem;
 function showSetup(){ $('setup').style.display='flex'; $('tok').focus() }
-$('save').onclick=()=>{const v=$('tok').value.trim(); if(v.length<20) return; token=v; store(v); $('setup').style.display='none'; tick(true)};
+$('save').onclick=()=>{const v=$('tok').value.replace(/\s/g,''); if(v.length<20){ $('tokCount').textContent='まだ '+v.length+' 文字です（64文字）'; return } token=v; store(v); $('setup').style.display='none'; tick(true)};
 $('tok').addEventListener('keydown',e=>{if(e.key==='Enter') $('save').click()});
+// 10/31 テレビ内蔵ブラウザで「文字が入っているか判別できない」→ 入れた文字を8文字ずつ区切って大きく表示し、文字数も出す。
+// 古いブラウザは入力のたびの通知が来ないことがあるので、0.3秒ごとに読み直す
+function showTok(){ const v=$('tok').value.replace(/\s/g,''); $('tokCount').textContent='入力済み '+v.length+' / 64 文字'; $('tokShow').textContent=(v.match(/.{1,8}/g)||[]).join(' ') }
+setInterval(()=>{ if($('setup').style.display==='flex') showTok() },300);
 $('reset').onclick=()=>{ $('tok').value=''; showSetup() };
 // 家の位置：過去7日間に猫が10分以上じっとしていた場所（受信が10分以上止まる直前の位置）の中央値。
 // 10/27 検証：オーナーと決めた「家と物置の中間」から4m、過去7日の家での40分超の空白25回はこの点から最大26m（30mで誤報0）［実測］。
