@@ -131,6 +131,7 @@
   <input id="tok" type="text" autocomplete="off" spellcheck="false" placeholder="トークン（64文字）">
   <div id="tokCount" style="font-size:4vh;font-weight:700;color:#ffd54a">入力済み 0 / 64 文字</div>
   <div id="tokShow" style="font-family:Menlo,Consolas,monospace;font-size:4.2vh;letter-spacing:.15em;line-height:1.5;word-break:break-all;max-width:1200px"></div>
+  <div id="tokMsg" style="font-size:3.4vh;font-weight:700;color:#ff8a80;min-height:4vh"></div>
   <button id="save">保存して表示</button>
   <div class="note">トークンはこのテレビのブラウザの中だけに保存されます。</div>
 </div>
@@ -147,11 +148,27 @@ let token=load(); let mem='';
 const m=location.hash.match(/t=([A-Za-z0-9]+)/); if(m){token=m[1];store(token);mem=token;history.replaceState(null,'',location.pathname)}
 if(!token&&mem) token=mem;
 function showSetup(){ $('setup').style.display='flex'; $('tok').focus() }
-$('save').onclick=()=>{const v=$('tok').value.replace(/\s/g,''); if(v.length<20){ $('tokCount').textContent='まだ '+v.length+' 文字です（64文字）'; return } token=v; store(v); $('setup').style.display='none'; tick(true)};
+// 10/31 テレビで1文字違い（l と I）で弾かれた［実測］→ 全角は半角に直し、英数字以外は捨てる。
+// 保存の前に flespi に確かめ、通らなければ見間違えやすい文字（l・I・1、O・0）を入れ替えて試す（最大64通り）
+const norm=v=>v.replace(/[\uFF01-\uFF5E]/g,c=>String.fromCharCode(c.charCodeAt(0)-0xFEE0)).replace(/[^A-Za-z0-9]/g,'');
+async function tokOk(t){ try{ const r=await fetch(API+'/telemetry/battery.level',{headers:{Authorization:'FlespiToken '+t}}); return r.ok }catch(e){ return false } }
+async function findTok(v){
+  const G={l:'lI1',I:'Il1','1':'1lI',O:'O0','0':'0O'}, pos=[]; for(let i=0;i<v.length;i++) if(G[v[i]]) pos.push(i);
+  let cands=[v];
+  for(const i of pos){ const next=[]; for(const c of cands) for(const ch of G[v[i]]) next.push(c.slice(0,i)+ch+c.slice(i+1)); if(next.length>64) break; cands=next }
+  for(let k=0;k<cands.length;k++){ $('tokMsg').textContent='flespi に確認中… '+(k+1)+' / '+cands.length; if(await tokOk(cands[k])) return cands[k] }
+  return null;
+}
+$('save').onclick=async()=>{
+  const v=norm($('tok').value); if(v.length<20){ $('tokMsg').textContent='まだ '+v.length+' 文字です（64文字）'; return }
+  const ok=await findTok(v);
+  if(!ok){ $('tokMsg').textContent='このトークンは使えません。区切りごとに見比べてください（大文字・小文字も）'; return }
+  $('tokMsg').textContent=''; $('tok').value=ok; token=ok; store(ok); $('setup').style.display='none'; tick(true)
+};
 $('tok').addEventListener('keydown',e=>{if(e.key==='Enter') $('save').click()});
 // 10/31 テレビ内蔵ブラウザで「文字が入っているか判別できない」→ 入れた文字を8文字ずつ区切って大きく表示し、文字数も出す。
 // 古いブラウザは入力のたびの通知が来ないことがあるので、0.3秒ごとに読み直す
-function showTok(){ const v=$('tok').value.replace(/\s/g,''); $('tokCount').textContent='入力済み '+v.length+' / 64 文字'; $('tokShow').textContent=(v.match(/.{1,8}/g)||[]).join(' ') }
+function showTok(){ const v=norm($('tok').value); $('tokCount').textContent='入力済み '+v.length+' / 64 文字'; $('tokShow').textContent=(v.match(/.{1,8}/g)||[]).join(' ') }
 setInterval(()=>{ if($('setup').style.display==='flex') showTok() },300);
 $('reset').onclick=()=>{ $('tok').value=''; showSetup() };
 // 家の位置：過去7日間に猫が10分以上じっとしていた場所（受信が10分以上止まる直前の位置）の中央値。

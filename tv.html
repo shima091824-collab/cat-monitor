@@ -143,6 +143,7 @@
   <input id="tok" type="text" autocomplete="off" spellcheck="false" placeholder="トークン（64文字）">
   <div id="tokCount" style="font-size:4vh;font-weight:700;color:#ffd54a">入力済み 0 / 64 文字</div>
   <div id="tokShow" style="font-family:Menlo,Consolas,monospace;font-size:4.2vh;letter-spacing:.15em;line-height:1.5;word-break:break-all;max-width:1200px"></div>
+  <div id="tokMsg" style="font-size:3.4vh;font-weight:700;color:#ff8a80;min-height:4vh"></div>
   <button id="save">保存して表示</button>
   <div class="note">トークンはこのテレビのブラウザの中だけに保存されます。</div>
 </div>
@@ -190,24 +191,154 @@ function showSetup() {
   $('setup').style.display = 'flex';
   $('tok').focus();
 }
-$('save').onclick = function () {
-  var v = $('tok').value.replace(/\s/g, '');
-  if (v.length < 20) {
-    $('tokCount').textContent = 'まだ ' + v.length + ' 文字です（64文字）';
-    return;
-  }
-  token = v;
-  store(v);
-  $('setup').style.display = 'none';
-  tick(true);
+// 10/31 テレビで1文字違い（l と I）で弾かれた［実測］→ 全角は半角に直し、英数字以外は捨てる。
+// 保存の前に flespi に確かめ、通らなければ見間違えやすい文字（l・I・1、O・0）を入れ替えて試す（最大64通り）
+var norm = function norm(v) {
+  return v.replace(/[\uFF01-\uFF5E]/g, function (c) {
+    return String.fromCharCode(c.charCodeAt(0) - 0xFEE0);
+  }).replace(/[^A-Za-z0-9]/g, '');
 };
+function tokOk(_x) {
+  return _tokOk.apply(this, arguments);
+}
+function _tokOk() {
+  _tokOk = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee2(t) {
+    var r, _t;
+    return _regenerator().w(function (_context2) {
+      while (1) switch (_context2.p = _context2.n) {
+        case 0:
+          _context2.p = 0;
+          _context2.n = 1;
+          return fetch(API + '/telemetry/battery.level', {
+            headers: {
+              Authorization: 'FlespiToken ' + t
+            }
+          });
+        case 1:
+          r = _context2.v;
+          return _context2.a(2, r.ok);
+        case 2:
+          _context2.p = 2;
+          _t = _context2.v;
+          return _context2.a(2, false);
+      }
+    }, _callee2, null, [[0, 2]]);
+  }));
+  return _tokOk.apply(this, arguments);
+}
+function findTok(_x2) {
+  return _findTok.apply(this, arguments);
+}
+function _findTok() {
+  _findTok = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee3(v) {
+    var G, pos, i, cands, _i6, _i7, next, _i9, _cands2, c, _i1, _G$v$_i2, ch, k;
+    return _regenerator().w(function (_context3) {
+      while (1) switch (_context3.n) {
+        case 0:
+          G = {
+            l: 'lI1',
+            I: 'Il1',
+            '1': '1lI',
+            O: 'O0',
+            '0': '0O'
+          }, pos = [];
+          for (i = 0; i < v.length; i++) if (G[v[i]]) pos.push(i);
+          cands = [v];
+          _i6 = 0;
+        case 1:
+          if (!(_i6 < pos.length)) {
+            _context3.n = 4;
+            break;
+          }
+          _i7 = pos[_i6];
+          next = [];
+          for (_i9 = 0, _cands2 = cands; _i9 < _cands2.length; _i9++) {
+            c = _cands2[_i9];
+            for (_i1 = 0, _G$v$_i2 = G[v[_i7]]; _i1 < _G$v$_i2.length; _i1++) {
+              ch = _G$v$_i2[_i1];
+              next.push(c.slice(0, _i7) + ch + c.slice(_i7 + 1));
+            }
+          }
+          if (!(next.length > 64)) {
+            _context3.n = 2;
+            break;
+          }
+          return _context3.a(3, 4);
+        case 2:
+          cands = next;
+        case 3:
+          _i6++;
+          _context3.n = 1;
+          break;
+        case 4:
+          k = 0;
+        case 5:
+          if (!(k < cands.length)) {
+            _context3.n = 8;
+            break;
+          }
+          $('tokMsg').textContent = 'flespi に確認中… ' + (k + 1) + ' / ' + cands.length;
+          _context3.n = 6;
+          return tokOk(cands[k]);
+        case 6:
+          if (!_context3.v) {
+            _context3.n = 7;
+            break;
+          }
+          return _context3.a(2, cands[k]);
+        case 7:
+          k++;
+          _context3.n = 5;
+          break;
+        case 8:
+          return _context3.a(2, null);
+      }
+    }, _callee3);
+  }));
+  return _findTok.apply(this, arguments);
+}
+$('save').onclick = /*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee() {
+  var v, ok;
+  return _regenerator().w(function (_context) {
+    while (1) switch (_context.n) {
+      case 0:
+        v = norm($('tok').value);
+        if (!(v.length < 20)) {
+          _context.n = 1;
+          break;
+        }
+        $('tokMsg').textContent = 'まだ ' + v.length + ' 文字です（64文字）';
+        return _context.a(2);
+      case 1:
+        _context.n = 2;
+        return findTok(v);
+      case 2:
+        ok = _context.v;
+        if (ok) {
+          _context.n = 3;
+          break;
+        }
+        $('tokMsg').textContent = 'このトークンは使えません。区切りごとに見比べてください（大文字・小文字も）';
+        return _context.a(2);
+      case 3:
+        $('tokMsg').textContent = '';
+        $('tok').value = ok;
+        token = ok;
+        store(ok);
+        $('setup').style.display = 'none';
+        tick(true);
+      case 4:
+        return _context.a(2);
+    }
+  }, _callee);
+}));
 $('tok').addEventListener('keydown', function (e) {
   if (e.key === 'Enter') $('save').click();
 });
 // 10/31 テレビ内蔵ブラウザで「文字が入っているか判別できない」→ 入れた文字を8文字ずつ区切って大きく表示し、文字数も出す。
 // 古いブラウザは入力のたびの通知が来ないことがあるので、0.3秒ごとに読み直す
 function showTok() {
-  var v = $('tok').value.replace(/\s/g, '');
+  var v = norm($('tok').value);
   $('tokCount').textContent = '入力済み ' + v.length + ' / 64 文字';
   $('tokShow').textContent = (v.match(/.{1,8}/g) || []).join(' ');
 }
@@ -227,27 +358,27 @@ function updateHome() {
   return _updateHome.apply(this, arguments);
 }
 function _updateHome() {
-  _updateHome = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee() {
+  _updateHome = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee4() {
     var to, r, ok, rest, last, i, med, h;
-    return _regenerator().w(function (_context) {
-      while (1) switch (_context.n) {
+    return _regenerator().w(function (_context4) {
+      while (1) switch (_context4.n) {
         case 0:
           if (!(Date.now() - homeAt < 3600000 && HOME)) {
-            _context.n = 1;
+            _context4.n = 1;
             break;
           }
-          return _context.a(2);
+          return _context4.a(2);
         case 1:
           homeAt = Date.now();
           to = Math.floor(Date.now() / 1000);
-          _context.n = 2;
+          _context4.n = 2;
           return get('/messages?data=' + encodeURIComponent(JSON.stringify({
             from: to - 7 * 86400,
             to: to,
             fields: 'timestamp,position.latitude,position.longitude,position.valid'
           })));
         case 2:
-          r = _context.v;
+          r = _context4.v;
           ok = function ok(x) {
             return x['position.latitude'] && x['position.valid'] !== false;
           }, rest = [];
@@ -257,10 +388,10 @@ function _updateHome() {
             if (last && r[i + 1].timestamp - r[i].timestamp >= 600 && r[i].timestamp - last.timestamp < 1800) rest.push([last['position.latitude'], last['position.longitude']]);
           }
           if (!(rest.length < 10)) {
-            _context.n = 3;
+            _context4.n = 3;
             break;
           }
-          return _context.a(2);
+          return _context4.a(2);
         case 3:
           // 記録が少ないうちは判定しない
           med = function med(a) {
@@ -282,9 +413,9 @@ function _updateHome() {
             }
           }
         case 4:
-          return _context.a(2);
+          return _context4.a(2);
       }
-    }, _callee);
+    }, _callee4);
   }));
   return _updateHome.apply(this, arguments);
 }
@@ -320,10 +451,10 @@ var spanColor = function spanColor(t) {
   var m = function m(x, y, u) {
     return Math.round(x + (y - x) * u);
   };
-  var _ref = t < .5 ? [a, b, t * 2] : [b, c, (t - .5) * 2],
-    p = _ref[0],
-    q = _ref[1],
-    u = _ref[2];
+  var _ref2 = t < .5 ? [a, b, t * 2] : [b, c, (t - .5) * 2],
+    p = _ref2[0],
+    q = _ref2[1],
+    u = _ref2[2];
   return 'rgb(' + m(p[0], q[0], u) + ',' + m(p[1], q[1], u) + ',' + m(p[2], q[2], u) + ')';
 };
 var NCOL = 8; // 色の段階（線の本数＝段階数×外出回数。Fire TV の負荷を抑える）
@@ -558,25 +689,25 @@ function showDayLabel() {
   }
   $('next').disabled = isToday;
 }
-function loadPast(_x) {
+function loadPast(_x3) {
   return _loadPast.apply(this, arguments);
 }
 function _loadPast() {
-  _loadPast = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee2(d) {
+  _loadPast = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee5(d) {
     var msgs, ok, pts;
-    return _regenerator().w(function (_context2) {
-      while (1) switch (_context2.n) {
+    return _regenerator().w(function (_context5) {
+      while (1) switch (_context5.n) {
         case 0:
           // 過去の日：その日の 0:00〜24:00 をまとめて読み、全体が見えるように地図を合わせる
           $('dayLabel').textContent = dayText(d) + ' を読み込み中…';
-          _context2.n = 1;
+          _context5.n = 1;
           return get('/messages?data=' + encodeURIComponent(JSON.stringify({
             from: d,
             to: d + 86399,
             fields: 'timestamp,position.latitude,position.longitude,position.valid'
           })));
         case 1:
-          msgs = _context2.v;
+          msgs = _context5.v;
           ok = msgs.filter(function (x) {
             return x['position.latitude'] && x['position.valid'] !== false;
           });
@@ -596,57 +727,57 @@ function _loadPast() {
           showDayLabel();
           if (!pts.length) $('dayLabel').textContent = dayText(d) + '：記録なし';
         case 2:
-          return _context2.a(2);
+          return _context5.a(2);
       }
-    }, _callee2);
+    }, _callee5);
   }));
   return _loadPast.apply(this, arguments);
 }
-function goDay(_x2) {
+function goDay(_x4) {
   return _goDay.apply(this, arguments);
 } // 地図の移動（画面の 1/3 ずつ）と拡大縮小、猫の位置へ戻る
 function _goDay() {
-  _goDay = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee3(delta) {
-    var today, d, _t;
-    return _regenerator().w(function (_context3) {
-      while (1) switch (_context3.p = _context3.n) {
+  _goDay = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee6(delta) {
+    var today, d, _t2;
+    return _regenerator().w(function (_context6) {
+      while (1) switch (_context6.p = _context6.n) {
         case 0:
           if (token) {
-            _context3.n = 1;
+            _context6.n = 1;
             break;
           }
-          return _context3.a(2);
+          return _context6.a(2);
         case 1:
           today = jstMidnight();
           d = delta === 0 ? today : (viewDay !== null && viewDay !== void 0 ? viewDay : today) + delta * 86400;
           if (d > today) d = today;
           viewDay = d;
           isToday = d === today;
-          _context3.p = 2;
+          _context6.p = 2;
           if (!isToday) {
-            _context3.n = 4;
+            _context6.n = 4;
             break;
           }
           trailDay = 0;
-          _context3.n = 3;
+          _context6.n = 3;
           return tick(true);
         case 3:
-          _context3.n = 5;
+          _context6.n = 5;
           break;
         case 4:
-          _context3.n = 5;
+          _context6.n = 5;
           return loadPast(d);
         case 5:
-          _context3.n = 7;
+          _context6.n = 7;
           break;
         case 6:
-          _context3.p = 6;
-          _t = _context3.v;
+          _context6.p = 6;
+          _t2 = _context6.v;
           $('dayLabel').textContent = '読み込みに失敗しました';
         case 7:
-          return _context3.a(2);
+          return _context6.a(2);
       }
-    }, _callee3, null, [[2, 6]]);
+    }, _callee6, null, [[2, 6]]);
   }));
   return _goDay.apply(this, arguments);
 }
@@ -698,48 +829,48 @@ function jstMidnight() {
     j = n + 9 * 3600;
   return n - j % 86400;
 } // 日本時間の今日 0:00（UNIX 秒）
-function get(_x3) {
+function get(_x5) {
   return _get.apply(this, arguments);
 }
 function _get() {
-  _get = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee4(path) {
-    var r, _t2;
-    return _regenerator().w(function (_context4) {
-      while (1) switch (_context4.n) {
+  _get = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee7(path) {
+    var r, _t3;
+    return _regenerator().w(function (_context7) {
+      while (1) switch (_context7.n) {
         case 0:
-          _context4.n = 1;
+          _context7.n = 1;
           return fetch(API + path, {
             headers: {
               Authorization: 'FlespiToken ' + token
             }
           });
         case 1:
-          r = _context4.v;
+          r = _context7.v;
           if (!(r.status === 401 || r.status === 403)) {
-            _context4.n = 2;
+            _context7.n = 2;
             break;
           }
           throw new Error('auth');
         case 2:
           if (r.ok) {
-            _context4.n = 3;
+            _context7.n = 3;
             break;
           }
           throw new Error('http ' + r.status);
         case 3:
-          _context4.n = 4;
+          _context7.n = 4;
           return r.json();
         case 4:
-          _t2 = _context4.v.result;
-          if (_t2) {
-            _context4.n = 5;
+          _t3 = _context7.v.result;
+          if (_t3) {
+            _context7.n = 5;
             break;
           }
-          _t2 = [];
+          _t3 = [];
         case 5:
-          return _context4.a(2, _t2);
+          return _context7.a(2, _t3);
       }
-    }, _callee4);
+    }, _callee7);
   }));
   return _get.apply(this, arguments);
 }
@@ -826,30 +957,30 @@ function paint() {
   $('reset').style.display = alarm ? 'none' : '';
   $('rule').style.display = alarm ? 'none' : ''; // 異常中は帯と回転灯そのものが出ているので、説明の枠は隠して画面に収める   // 異常のときは説明文を隠して、右欄を画面に収める
 }
-function tick(_x4) {
+function tick(_x6) {
   return _tick.apply(this, arguments);
 } // 10/27 「電池の残り」行は削除（オーナー：休んでいる間は減り方が変わり当てにならない）
 function _tick() {
-  _tick = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee5(force) {
-    var t, tel, v, lat, lon, b, chg, full, chgTs, f, ev, day0, msgs, _i6, x, _t3;
-    return _regenerator().w(function (_context5) {
-      while (1) switch (_context5.p = _context5.n) {
+  _tick = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee8(force) {
+    var t, tel, v, lat, lon, b, chg, full, chgTs, f, ev, day0, msgs, _i11, x, _t4;
+    return _regenerator().w(function (_context8) {
+      while (1) switch (_context8.p = _context8.n) {
         case 0:
           if (token) {
-            _context5.n = 1;
+            _context8.n = 1;
             break;
           }
           showSetup();
-          return _context5.a(2);
+          return _context8.a(2);
         case 1:
-          _context5.p = 1;
-          _context5.n = 2;
+          _context8.p = 1;
+          _context8.n = 2;
           return updateHome().catch(function () {});
         case 2:
-          _context5.n = 3;
+          _context8.n = 3;
           return get('/telemetry/position.latitude,position.longitude,position.valid,timestamp,server.timestamp,battery.level,battery.voltage,battery.charging.status,event.code');
         case 3:
-          t = _context5.v[0];
+          t = _context8.v[0];
           tel = t && t.telemetry || {};
           v = function v(k) {
             return tel[k] && tel[k].value;
@@ -893,7 +1024,7 @@ function _tick() {
           if (viewDay === null || viewDay === trailDay && day0 !== trailDay && viewDay >= day0 - 86400 && isToday) viewDay = day0;
           isToday = viewDay === day0;
           if (!isToday) {
-            _context5.n = 5;
+            _context8.n = 5;
             break;
           }
           if (trailDay !== day0) {
@@ -904,15 +1035,15 @@ function _tick() {
             timeLayer.clearLayers();
             trailLayer.clearLayers();
           }
-          _context5.n = 4;
+          _context8.n = 4;
           return get('/messages?data=' + encodeURIComponent(JSON.stringify({
             from: trailLast + 1,
             fields: 'timestamp,position.latitude,position.longitude,position.valid'
           })));
         case 4:
-          msgs = _context5.v;
-          for (_i6 = 0; _i6 < msgs.length; _i6++) {
-            x = msgs[_i6];
+          msgs = _context8.v;
+          for (_i11 = 0; _i11 < msgs.length; _i11++) {
+            x = msgs[_i11];
             if (x.timestamp > trailLast) trailLast = x.timestamp;
             if (x['position.latitude'] && x['position.valid'] !== false) {
               trailPts.push([x['position.latitude'], x['position.longitude']]);
@@ -926,12 +1057,12 @@ function _tick() {
         case 5:
           showDayLabel();
           paint();
-          _context5.n = 7;
+          _context8.n = 7;
           break;
         case 6:
-          _context5.p = 6;
-          _t3 = _context5.v;
-          if (_t3.message === 'auth') {
+          _context8.p = 6;
+          _t4 = _context8.v;
+          if (_t4.message === 'auth') {
             $('status').className = 'bad';
             $('status').textContent = 'トークンが使えません';
             showSetup();
@@ -940,9 +1071,9 @@ function _tick() {
             $('status').textContent = '通信エラー（再試行中）';
           }
         case 7:
-          return _context5.a(2);
+          return _context8.a(2);
       }
-    }, _callee5, null, [[1, 6]]);
+    }, _callee8, null, [[1, 6]]);
   }));
   return _tick.apply(this, arguments);
 }
@@ -952,6 +1083,6 @@ setInterval(paint, 1000);
 window.__ok=1;
 </script>
 <div id="diag" style="display:none;position:fixed;left:0;right:0;bottom:0;z-index:20000;background:#000;color:#0f0;font:2.4vh monospace;padding:1vh;word-break:break-all"></div>
-<script>window.__diagShow&&window.__diagShow("ブラウザ: "+navigator.userAgent);window.__diagShow&&window.__diagShow("版 tv4 / 本体の動作: "+(window.__ok?"OK":"止まっている"));</script>
+<script>window.__diagShow&&window.__diagShow("ブラウザ: "+navigator.userAgent);window.__diagShow&&window.__diagShow("版 tv5 / 本体の動作: "+(window.__ok?"OK":"止まっている"));</script>
 </body>
 </html>
