@@ -1,0 +1,927 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>ねこモニター</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+  /* 茶の間のテレビ（Fire TV）で見る、見るだけの画面。トークンはこのファイルに入れない（端末のブラウザに保存） */
+  :root{--bg:#111;--panel:#1c1c1c;--fg:#f2f2f2;--muted:#9a9a9a;--ok:#2e9e5b;--warn:#c99a1c;--bad:#c0392b}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);font-family:"Hiragino Sans","Noto Sans JP",sans-serif}
+  #app{display:flex;height:100%}
+  #map{flex:1 1 auto;height:100%}
+  #side{width:30%;min-width:320px;box-sizing:border-box;padding:2.2vh 2vw;background:var(--panel);display:flex;flex-direction:column;gap:1.1vh}
+  .title{font-size:2.8vh;color:var(--muted)}
+  #status{border-radius:1.6vh;padding:1.4vh 1.2vw;font-size:3.9vh;font-weight:700;text-align:center}
+  .ok{background:var(--ok)} .warn{background:var(--warn)} .bad{background:var(--bad)}
+  .row{display:flex;justify-content:space-between;align-items:baseline;border-bottom:1px solid #333;padding-bottom:.8vh}
+  .row .k{font-size:2.7vh;color:var(--muted)} .row .v{font-size:4vh;font-weight:700}
+  #days{display:flex;gap:.8vw;align-items:center}
+  #days button{flex:1;font-size:2.6vh;padding:1.2vh .4vw;border-radius:1vh;border:0;background:#333;color:#fff}
+  #days button:focus{outline:4px solid #ffd54a}
+  #dayLabel{font-size:3vh;font-weight:700;text-align:center}
+  .past{color:#ffd54a}
+  /* Fire TV のリモコン用：地図の上の大きなボタン（タッチもマウスもない端末で移動・拡大縮小） */
+  #mapwrap{position:relative;flex:1 1 auto;height:100%}
+  #mapwrap #map{position:absolute;inset:0}
+  #pad{position:absolute;left:1.4vw;bottom:3vh;z-index:1000;display:grid;grid-template-columns:repeat(3,7vh);grid-template-rows:repeat(3,7vh);gap:.8vh}
+  #zoom{position:absolute;right:1.4vw;bottom:3vh;z-index:1000;display:flex;flex-direction:column;gap:.8vh}
+  #pad button,#zoom button{width:7vh;height:7vh;font-size:3.6vh;border-radius:1.2vh;border:0;background:rgba(20,20,20,.82);color:#fff;padding:0}
+  #pad button:focus,#zoom button:focus{outline:4px solid #ffd54a}
+  .tlabel{background:rgba(20,20,20,.85);color:#fff;border:0;border-radius:6px;font-size:1.7vh;font-weight:700;padding:2px 6px;box-shadow:none}
+  .tlabel:before{display:none}
+  .rlabel{position:absolute;transform:translate(-50%,-135%);white-space:nowrap;background:#fff;color:#2f6fd6;border:2px solid #6fa8ff;border-radius:999px;font-size:1.5vh;font-weight:700;padding:1px 8px}
+  .note{font-size:2vh;color:var(--muted);line-height:1.35}
+  #setup{position:fixed;inset:0;z-index:10000;box-sizing:border-box;background:var(--bg);display:none;flex-direction:column;align-items:center;justify-content:center;gap:3vh;padding:4vw;text-align:center}
+  #setup input{box-sizing:border-box;font-size:3.6vh;width:100%;max-width:1200px;padding:1.6vh;border-radius:1vh;border:2px solid #555;background:#000;color:#fff}
+  #setup button,#reset{font-size:3.6vh;padding:1.4vh 3vw;border-radius:1vh;border:0;background:#3a6fd8;color:#fff}
+  #setup button:focus,#reset:focus,#setup input:focus{outline:4px solid #ffd54a}
+  #reset,.resetlike{background:#333;font-size:1.9vh;padding:.7vh 1.2vw;border-radius:1vh;border:0;color:#fff}
+  .resetlike:focus{outline:4px solid #ffd54a}
+  .home{background:#3c5a78}
+  .alarm{background:var(--bad);animation:blink 1s steps(2,start) infinite}
+  @keyframes blink{to{background:#6d1a12}}
+  /* 異常時の回転灯（10/27 オーナー指示。見本のイラストは素材サイトの画像のため使わず、同じ雰囲気の図を描いた） */
+  #statusWrap{display:flex;align-items:center;gap:1vw}
+  #statusWrap #status{flex:1}
+  #sirenBox{display:none;width:10vh;flex:none}
+  #sirenBox svg{width:100%;display:block}
+  #siren .rays{animation:rays .6s ease-in-out infinite alternate}
+  @keyframes rays{from{opacity:.15}to{opacity:1}}
+  /* 10/27「電池58%が何かわかりづらい」→ 首輪（MT710）の電池と明記し、電池の形の目盛りを添える */
+  .batt{position:relative;width:6.5vh;height:3.2vh;border:.4vh solid #ddd;border-radius:.6vh;box-sizing:border-box;padding:.3vh}
+  .batt:after{content:'';position:absolute;right:-1.1vh;top:.8vh;width:.6vh;height:1vh;background:#ddd;border-radius:0 .3vh .3vh 0}
+  /* 10/28 充電中は電池の絵を稲妻マークに変え、見出しを「充電中」にする（battery.charging.status：PLUG で true、UNPLUG・FULL で false［実測］） */
+  .batt .bolt{display:none;position:absolute;left:50%;top:50%;width:3.4vh;height:3.4vh;transform:translate(-50%,-50%)}
+  .batt.charging .bolt{display:block}
+  .batt.charging #battFill{opacity:.35}
+  #battK.charging{color:#ffd54a;font-weight:700}
+  #battFill{display:block;height:100%;width:0;border-radius:.2vh;background:var(--ok)}
+  /* 10/28 緊急確認の枠の下に、異常時の帯と回転灯の見本（小さく）を付ける */
+  #sample{display:flex;flex-wrap:wrap;align-items:center;gap:.6vh .8vw;margin-top:.6vh}
+  #sampleSiren{width:4.5vh;flex:none}
+  #sampleSiren svg{width:100%;display:block}
+  .sband{background:var(--bad);color:#fff;font-weight:700;font-size:1.6vh;padding:.3vh .6vw;border-radius:.8vh;white-space:nowrap}
+  .slabel{font-size:1.6vh;color:var(--muted);white-space:nowrap}
+  /* 10/28「確認しました」ボタン：その異常（最後の受信時刻で区別）を確認済みにして通常表示に戻す。新しい受信が来たら次の異常はまた出る。確認はこの端末だけ */
+  #ackBtn{font-size:3vh;font-weight:700;padding:1.2vh 1vw;border-radius:1vh;border:0;background:#fff;color:#8b1d12}
+  #ackBtn:focus{outline:5px solid #ffd54a}
+  #alarmInfo{display:none;font-size:2.4vh;font-weight:700;color:#ffb3a8;line-height:1.4}
+  .catdot.alarm-dot{box-shadow:0 0 0 10px rgba(192,57,43,.55),0 0 0 22px rgba(192,57,43,.25)}
+  .catdot{width:26px;height:26px;border-radius:50%;background:#ff5a36;border:4px solid #fff;box-shadow:0 0 0 6px rgba(255,90,54,.35)}
+  /* 10/30 スマホ（縦長・狭い画面）：リモコン用の大ボタンは隠して指で操作（ピンチで拡大）。文字は画面の高さ基準だと大きすぎるので px で決め、下へスクロールできるようにする */
+  @media (max-width:800px){
+    html,body{height:auto}
+    #app{flex-direction:column;height:auto}
+    #mapwrap{flex:none;height:52vh}
+    #pad,#zoom{display:none}
+    #side{width:100%;min-width:0;padding:12px 16px 24px;gap:8px}
+    .title{font-size:14px}
+    #status{font-size:20px;padding:10px 12px;border-radius:12px}
+    .row{padding-bottom:6px}
+    .row .k{font-size:14px} .row .v{font-size:20px}
+    .batt{width:34px;height:17px;border-width:2px;padding:2px;border-radius:4px}
+    .batt:after{right:-6px;top:4px;width:3px;height:6px}
+    .batt .bolt{width:18px;height:18px}
+    #bat{font-size:20px!important}
+    #dayLabel{font-size:16px}
+    #days button{font-size:14px;padding:10px 4px;border-radius:8px}
+    .note{font-size:13px}
+    #sirenBox{width:52px} #sampleSiren{width:24px}
+    .sband,.slabel{font-size:12px}
+    #ackBtn{font-size:18px;padding:12px}
+    #alarmInfo{font-size:15px}
+    #reset{font-size:13px;padding:8px 12px}
+    .tlabel{font-size:12px} .rlabel{font-size:12px}
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="mapwrap">
+    <div id="map"></div>
+    <div id="pad">
+      <span></span><button id="up" title="上へ">▲</button><span></span>
+      <button id="left" title="左へ">◀</button><button id="center" title="猫の位置へ" style="font-size:3vh">●</button><button id="right" title="右へ">▶</button>
+      <span></span><button id="down" title="下へ">▼</button><span></span>
+    </div>
+    <div id="zoom"><button id="zin" title="拡大">＋</button><button id="zout" title="縮小">－</button></div>
+  </div>
+  <div id="side">
+    <div class="title">ねこモニター（MT710）</div>
+    <div id="statusWrap"><div id="sirenBox"><svg id="siren" viewBox="0 0 120 100" aria-hidden="true"><g class="rays" stroke="#ffcf2e" stroke-width="7" stroke-linecap="round"><line x1="14" y1="30" x2="28" y2="38"/><line x1="8" y1="58" x2="24" y2="58"/><line x1="30" y1="10" x2="38" y2="24"/><line x1="106" y1="30" x2="92" y2="38"/><line x1="112" y1="58" x2="96" y2="58"/><line x1="90" y1="10" x2="82" y2="24"/></g><path d="M36 78 V54 a24 24 0 0 1 48 0 V78 Z" fill="#e8231b" stroke="#5a0d08" stroke-width="3"/><path d="M44 56 a14 14 0 0 1 10 -16" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" opacity=".85"/><rect x="28" y="76" width="64" height="12" rx="3" fill="#cfd4da" stroke="#5c6168" stroke-width="3"/><rect x="24" y="86" width="72" height="8" rx="2" fill="#9aa1a8" stroke="#5c6168" stroke-width="3"/></svg></div><div id="status" class="warn">読み込み中…</div></div>
+    <div id="alarmInfo"></div>
+    <button id="ackBtn" style="display:none">確認しました</button>
+    <div class="row"><span class="k">最後の受信</span><span class="v" id="ago">—</span></div>
+    <div class="row"><span class="k">位置の時刻</span><span class="v" id="ptime">—</span></div>
+    <div class="row"><span class="k" id="battK">電池残量</span><span class="v" style="display:flex;align-items:center;gap:1vw"><span class="batt" id="battIcon"><span id="battFill"></span><svg class="bolt" viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2 4 14h7l-1 8 9-12h-7z" fill="#ffd54a" stroke="#1c1c1c" stroke-width="1.5" stroke-linejoin="round"/></svg></span><span id="bat">—</span></span></div>
+    <div class="row"><span class="k">状態</span><span class="v" id="mov">—</span></div>
+    <div id="dayLabel">今日の軌跡</div>
+    <div id="days"><button id="prev">◀ 前の日</button><button id="today">今日</button><button id="next">次の日 ▶</button></div>
+    <div class="note" id="help">線＝その日の動き（<span style="color:#ffb88c">■</span>早い→<span style="color:#8c140a">■</span>遅い時刻）。<span style="color:#7fb3ff">◯</span>＝家（中は線なし）。時刻は家の外の動き、拡大で増えます。0時に消えます（flespi に約1年残る）。</div>
+    <div class="note" id="rule" style="color:#ffb3a8;border:1px solid #6d3a33;border-radius:1vh;padding:.6vh 1vw"><b>アラートのタイミング</b>：家（中心から30m）の外で、40分以上 受信なし（動きなし）のとき。<div id="sample"><span id="sampleSiren"></span><span class="sband">異常：家の外で◯分 動きなし</span><span class="slabel">←この表示</span></div></div>
+    <div class="note" id="homeWarn" style="display:none;color:#ffd54a">家の位置を計算中のため、異常の判定はまだ止まっています。</div>
+    <div style="display:flex;gap:1vw;margin-top:auto"><button id="reset">トークンを入れ直す</button></div>
+  </div>
+</div>
+<div id="setup">
+  <div style="font-size:4vh">はじめに flespi の「見るだけ」トークンを入力してください</div>
+  <input id="tok" type="text" autocomplete="off" spellcheck="false" placeholder="トークン（64文字）">
+  <button id="save">保存して表示</button>
+  <div class="note">トークンはこのテレビのブラウザの中だけに保存されます。</div>
+</div>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/promise-polyfill/8.3.0/polyfill.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/whatwg-fetch@3.6.2/dist/fetch.umd.js"></script>
+<script>
+function _regenerator() { /*! regenerator-runtime -- Copyright (c) 2014-present, Facebook, Inc. -- license (MIT): https://github.com/babel/babel/blob/main/packages/babel-helpers/LICENSE */ var r, e, o = "function" == typeof Symbol ? Symbol : {}, n = o.iterator || "@@iterator", a = o.toStringTag || "@@toStringTag"; function i(o, n, a, i) { var u = n && n.prototype instanceof Generator ? n : Generator, f = Object.create(u.prototype); return _regeneratorDefine2(f, "_invoke", function (t, o, n) { var a, i, u, f = 0, p = n || [], y = !1, G = { p: 0, n: 0, v: r, a: l, f: l.bind(r, 4), d: function d(t, e) { return a = t, i = 0, u = r, G.n = e, c; } }; function l(t, o) { for (i = t, u = o, e = 0; !y && f && !n && e < p.length; e++) { var n, a = p[e], l = G.p, F = a[2]; t > 3 ? (n = F === o) && (u = a[(i = a[4]) ? 5 : (i = 3, 3)], a[4] = a[5] = r) : a[0] <= l && ((n = t < 2 && l < a[1]) ? (i = 0, G.v = o, G.n = a[1]) : l < F && (n = t < 3 || a[0] > o || o > F) && (a[4] = t, a[5] = o, G.n = F, i = 0)); } if (n || t > 1) return c; throw y = !0, o; } return function (n, p, F) { if (f > 1) throw TypeError("Generator is already running"); for (y && 1 === p && l(p, F), i = p, u = F; (e = i < 2 ? r : u) || !y;) { a || (i ? i < 3 ? (i > 1 && (G.n = -1), l(i, u)) : G.n = u : G.v = u); try { if (f = 2, a) { if (i || (n = "next"), e = a[n]) { if (!(e = e.call(a, u))) throw TypeError("iterator result is not an object"); if (!e.done) return e; u = e.value, i < 2 && (i = 0); } else 1 === i && (e = a.return) && e.call(a), i < 2 && (u = TypeError("The iterator does not provide a '" + n + "' method"), i = 1); a = r; } else if ((e = (y = G.n < 0) ? u : t.call(o, G)) !== c) break; } catch (t) { a = r, i = 1, u = t; } finally { f = 1; } } return { value: e, done: y }; }; }(o, a, i), !0), f; } var c = {}; function Generator() {} function GeneratorFunction() {} function GeneratorFunctionPrototype() {} e = Object.getPrototypeOf; var u = [][n] ? e(e([][n]())) : (_regeneratorDefine2(e = {}, n, function () { return this; }), e), f = GeneratorFunctionPrototype.prototype = Generator.prototype = Object.create(u); function p(r) { return Object.setPrototypeOf ? Object.setPrototypeOf(r, GeneratorFunctionPrototype) : (r.__proto__ = GeneratorFunctionPrototype, _regeneratorDefine2(r, a, "GeneratorFunction")), r.prototype = Object.create(f), r; } return GeneratorFunction.prototype = GeneratorFunctionPrototype, _regeneratorDefine2(f, "constructor", GeneratorFunctionPrototype), _regeneratorDefine2(GeneratorFunctionPrototype, "constructor", GeneratorFunction), GeneratorFunction.displayName = "GeneratorFunction", _regeneratorDefine2(GeneratorFunctionPrototype, a, "GeneratorFunction"), _regeneratorDefine2(f), _regeneratorDefine2(f, a, "Generator"), _regeneratorDefine2(f, n, function () { return this; }), _regeneratorDefine2(f, "toString", function () { return "[object Generator]"; }), (_regenerator = function _regenerator() { return { w: i, m: p }; })(); }
+function _regeneratorDefine2(e, r, n, t) { var i = Object.defineProperty; try { i({}, "", {}); } catch (e) { i = 0; } _regeneratorDefine2 = function _regeneratorDefine(e, r, n, t) { function o(r, n) { _regeneratorDefine2(e, r, function (e) { return this._invoke(r, n, e); }); } r ? i ? i(e, r, { value: n, enumerable: !t, configurable: !t, writable: !t }) : e[r] = n : (o("next", 0), o("throw", 1), o("return", 2)); }, _regeneratorDefine2(e, r, n, t); }
+function asyncGeneratorStep(n, t, e, r, o, a, c) { try { var i = n[a](c), u = i.value; } catch (n) { return void e(n); } i.done ? t(u) : Promise.resolve(u).then(r, o); }
+function _asyncToGenerator(n) { return function () { var t = this, e = arguments; return new Promise(function (r, o) { var a = n.apply(t, e); function _next(n) { asyncGeneratorStep(a, r, o, _next, _throw, "next", n); } function _throw(n) { asyncGeneratorStep(a, r, o, _next, _throw, "throw", n); } _next(void 0); }); }; }
+var DEV = 9194373,
+  API = 'https://flespi.io/gw/devices/' + DEV,
+  KEY = 'catmon.token';
+var GREEN_MIN = 3,
+  RED_MIN = 30; // 最後の受信からの分数：3分以内＝緑、30分超＝赤、その間＝黄
+var $ = function $(id) {
+  return document.getElementById(id);
+};
+function load() {
+  try {
+    return localStorage.getItem(KEY) || '';
+  } catch (e) {
+    return '';
+  }
+}
+function store(v) {
+  try {
+    localStorage.setItem(KEY, v);
+  } catch (e) {}
+}
+var token = load();
+var mem = '';
+// URL の #t=... でも受け取れる（受け取ったら保存して URL から消す）
+var m = location.hash.match(/t=([A-Za-z0-9]+)/);
+if (m) {
+  token = m[1];
+  store(token);
+  mem = token;
+  history.replaceState(null, '', location.pathname);
+}
+if (!token && mem) token = mem;
+function showSetup() {
+  $('setup').style.display = 'flex';
+  $('tok').focus();
+}
+$('save').onclick = function () {
+  var v = $('tok').value.trim();
+  if (v.length < 20) return;
+  token = v;
+  store(v);
+  $('setup').style.display = 'none';
+  tick(true);
+};
+$('tok').addEventListener('keydown', function (e) {
+  if (e.key === 'Enter') $('save').click();
+});
+$('reset').onclick = function () {
+  $('tok').value = '';
+  showSetup();
+};
+// 家の位置：過去7日間に猫が10分以上じっとしていた場所（受信が10分以上止まる直前の位置）の中央値。
+// 10/27 検証：オーナーと決めた「家と物置の中間」から4m、過去7日の家での40分超の空白25回はこの点から最大26m（30mで誤報0）［実測］。
+// 座標をページに書かない（公開ページ）・端末ごとの入力も不要（テレビも同じ計算になる）。1時間ごとに計算し直す。
+var HOME = null,
+  homeAt = 0;
+function updateHome() {
+  return _updateHome.apply(this, arguments);
+}
+function _updateHome() {
+  _updateHome = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee() {
+    var to, r, ok, rest, last, i, med, h;
+    return _regenerator().w(function (_context) {
+      while (1) switch (_context.n) {
+        case 0:
+          if (!(Date.now() - homeAt < 3600000 && HOME)) {
+            _context.n = 1;
+            break;
+          }
+          return _context.a(2);
+        case 1:
+          homeAt = Date.now();
+          to = Math.floor(Date.now() / 1000);
+          _context.n = 2;
+          return get('/messages?data=' + encodeURIComponent(JSON.stringify({
+            from: to - 7 * 86400,
+            to: to,
+            fields: 'timestamp,position.latitude,position.longitude,position.valid'
+          })));
+        case 2:
+          r = _context.v;
+          ok = function ok(x) {
+            return x['position.latitude'] && x['position.valid'] !== false;
+          }, rest = [];
+          last = null;
+          for (i = 0; i < r.length - 1; i++) {
+            if (ok(r[i])) last = r[i];
+            if (last && r[i + 1].timestamp - r[i].timestamp >= 600 && r[i].timestamp - last.timestamp < 1800) rest.push([last['position.latitude'], last['position.longitude']]);
+          }
+          if (!(rest.length < 10)) {
+            _context.n = 3;
+            break;
+          }
+          return _context.a(2);
+        case 3:
+          // 記録が少ないうちは判定しない
+          med = function med(a) {
+            var b = [].concat(a).sort(function (x, y) {
+              return x - y;
+            });
+            return b[Math.floor(b.length / 2)];
+          };
+          h = L.latLng(med(rest.map(function (p) {
+            return p[0];
+          })), med(rest.map(function (p) {
+            return p[1];
+          })));
+          if (!HOME || map.distance(HOME, h) > 1) {
+            HOME = h;
+            if (isToday) {
+              drawTrail(trailPts, trailTs);
+              layoutTimes();
+            }
+          }
+        case 4:
+          return _context.a(2);
+      }
+    }, _callee);
+  }));
+  return _updateHome.apply(this, arguments);
+}
+try {
+  localStorage.removeItem('catmon.home');
+} catch (e) {}
+$('sampleSiren').innerHTML = $('siren').outerHTML.replace('id="siren"', ''); // 見本用に回転灯の図を複製   // 手入力していた頃の値を消す
+
+var map = L.map('map', {
+  zoomControl: false,
+  attributionControl: true
+}).setView([35.68, 139.76], 5);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  maxZoom: 19,
+  attribution: '&copy; OpenStreetMap contributors'
+}).addTo(map);
+var marker = L.marker([0, 0], {
+  icon: L.divIcon({
+    className: '',
+    html: '<div class="catdot"></div>',
+    iconSize: [26, 26],
+    iconAnchor: [13, 13]
+  })
+});
+var trailLayer = L.layerGroup().addTo(map);
+// 家（その日いちばん長くいた場所）から HOME_M 以内は線を引かず、薄い円だけ描く（屋内の GPS のばらつきでトゲトゲになるため）
+// 10/27 オーナー指摘「見栄えがよくない」→ ①円に出入りする線は円の縁で切る（円の中に線の切れ端を残さない）
+// ②色はその日の外出の最初→最後で 薄→濃（0〜24時だと夕方だけの日は全部同じ色になった） ③前後3点の平均でギザギザをならす
+var spanColor = function spanColor(t) {
+  var a = [255, 184, 140],
+    b = [240, 80, 40],
+    c = [140, 20, 10];
+  var m = function m(x, y, u) {
+    return Math.round(x + (y - x) * u);
+  };
+  var _ref = t < .5 ? [a, b, t * 2] : [b, c, (t - .5) * 2],
+    p = _ref[0],
+    q = _ref[1],
+    u = _ref[2];
+  return 'rgb(' + m(p[0], q[0], u) + ',' + m(p[1], q[1], u) + ',' + m(p[2], q[2], u) + ')';
+};
+var NCOL = 8; // 色の段階（線の本数＝段階数×外出回数。Fire TV の負荷を抑える）
+function drawTrail(pts, ts) {
+  trailLayer.clearLayers();
+  if (!pts.length) return;
+  var med = function med(a) {
+    var b = [].concat(a).sort(function (x, y) {
+      return x - y;
+    });
+    return b[Math.floor(b.length / 2)];
+  };
+  var home = HOME || L.latLng(med(pts.map(function (p) {
+    return p[0];
+  })), med(pts.map(function (p) {
+    return p[1];
+  })));
+  L.circle(home, {
+    radius: HOME_M,
+    color: '#6fa8ff',
+    weight: 2,
+    opacity: .7,
+    fill: true,
+    fillColor: '#6fa8ff',
+    fillOpacity: .07,
+    dashArray: '4 8'
+  }).addTo(trailLayer);
+  // 家を原点にしたメートル座標（円との交点を求めるため）
+  var kx = 111320 * Math.cos(home.lat * Math.PI / 180),
+    ky = 110540;
+  // 円の中に、中心から右の縁まで「←→ 20m」の寸法線を描く（10/27 オーナー指示）
+  {
+    var R = HOME_M,
+      a = R * .18,
+      w = R * .1,
+      ll = function ll(x, y) {
+        return [home.lat + y / ky, home.lng + x / kx];
+      },
+      st = {
+        color: '#2f6fd6',
+        weight: 2.5,
+        opacity: .9,
+        interactive: false
+      };
+    L.polyline([ll(0, 0), ll(R, 0)], st).addTo(trailLayer);
+    L.polyline([ll(a, w), ll(0, 0), ll(a, -w)], st).addTo(trailLayer); // 左の矢じり
+    L.polyline([ll(R - a, w), ll(R, 0), ll(R - a, -w)], st).addTo(trailLayer); // 右の矢じり
+    L.marker(ll(R / 2, 0), {
+      interactive: false,
+      keyboard: false,
+      icon: L.divIcon({
+        className: '',
+        html: '<div class="rlabel">' + R + 'm</div>',
+        iconSize: [0, 0]
+      })
+    }).addTo(trailLayer);
+  }
+  var toXY = function toXY(p) {
+      return [(p[1] - home.lng) * kx, (p[0] - home.lat) * ky];
+    },
+    toLL = function toLL(q) {
+      return [home.lat + q[1] / ky, home.lng + q[0] / kx];
+    };
+  var edge = function edge(a, b) {
+    // a（円の中）→ b（円の外）の線が円の縁と交わる点
+    var A = toXY(a),
+      B = toXY(b),
+      dx = B[0] - A[0],
+      dy = B[1] - A[1];
+    var qa = dx * dx + dy * dy,
+      qb = 2 * (A[0] * dx + A[1] * dy),
+      qc = A[0] * A[0] + A[1] * A[1] - HOME_M * HOME_M;
+    var t = (-qb + Math.sqrt(Math.max(0, qb * qb - 4 * qa * qc))) / (2 * qa || 1);
+    return toLL([A[0] + dx * t, A[1] + dy * t]);
+  };
+  var isOut = pts.map(function (p) {
+    return map.distance(home, p) >= HOME_M;
+  });
+  // 外にいる区間（外出）ごとに、前後3点の平均でならした線を作る
+  var trips = [];
+  var cur = null;
+  pts.forEach(function (p, i) {
+    if (!isOut[i]) {
+      if (cur) {
+        cur.p.push(edge(p, cur.p[cur.p.length - 1]));
+        cur.t.push(ts[i]);
+        trips.push(cur);
+        cur = null;
+      }
+      return;
+    }
+    if (!cur) {
+      cur = {
+        p: [],
+        t: []
+      };
+      if (i > 0) {
+        cur.p.push(edge(pts[i - 1], p));
+        cur.t.push(ts[i - 1]);
+      }
+    }
+    cur.p.push(p);
+    cur.t.push(ts[i]);
+  });
+  if (cur) trips.push(cur);
+  var outTs = trips.flatMap(function (r) {
+    return r.t;
+  });
+  if (!outTs.length) return;
+  var t0 = Math.min.apply(Math, outTs),
+    t1 = Math.max.apply(Math, outTs),
+    span = Math.max(1, t1 - t0);
+  for (var _i2 = 0; _i2 < trips.length; _i2++) {
+    var r = trips[_i2];
+    var P = r.p.map(function (p, i, a) {
+      if (i === 0 || i === a.length - 1) return p; // 両端（円の縁）は動かさない
+      return [(a[i - 1][0] + p[0] + a[i + 1][0]) / 3, (a[i - 1][1] + p[1] + a[i + 1][1]) / 3];
+    });
+    var k0 = 0,
+      c0 = Math.min(NCOL - 1, Math.floor((r.t[0] - t0) / span * NCOL));
+    for (var i = 1; i <= P.length; i++) {
+      var c = i < P.length ? Math.min(NCOL - 1, Math.floor((r.t[i] - t0) / span * NCOL)) : -1;
+      if (c !== c0) {
+        L.polyline(P.slice(k0, i + (i < P.length ? 1 : 0)), {
+          color: spanColor((c0 + .5) / NCOL),
+          weight: 4.5,
+          opacity: .95,
+          lineJoin: 'round',
+          lineCap: 'round'
+        }).addTo(trailLayer);
+        k0 = i;
+        c0 = c;
+      }
+    }
+  }
+}
+var first = true,
+  lastServer = 0;
+var trailDay = 0,
+  trailPts = [],
+  trailTs = [],
+  trailLast = 0,
+  viewDay = null,
+  isToday = true;
+// 軌跡に時刻の目印（10/27 オーナー指摘：家の周りで札が重なる → 減らしすぎ → もう少し出したい）
+// その日いちばん長くいた場所（緯度・経度の中央値）から HOME_M 以内は札を付けない（最初と最後の点は除く）。
+// 外では LABEL_MIN 分ごとに候補を作り、画面上で既に置いた札と重なるものだけ省く。拡大すると札が増える。
+var HOME_M = 20,
+  LABEL_MIN = 0.5; // 10/27 19:00 家の円を半径60m→20mに（オーナー指示）   // 10/27：2分→30秒（拡大しても札が増えないとの指摘。間引きは画面上の重なりで行う）
+var lblSize = function lblSize() {
+  var f = window.innerHeight * 0.017;
+  return [f * 3.3 + 14, f * 1.5 + 6];
+}; // 札の大きさ（.tlabel の文字 1.7vh に合わせる）
+var timeLayer = L.layerGroup().addTo(map);
+var tPts = [],
+  tTs = [];
+function drawTimes(pts, ts) {
+  tPts = pts;
+  tTs = ts;
+  layoutTimes();
+}
+function layoutTimes() {
+  var pts = tPts,
+    ts = tTs;
+  timeLayer.clearLayers();
+  if (!pts.length) return;
+  var med = function med(a) {
+    var b = [].concat(a).sort(function (x, y) {
+      return x - y;
+    });
+    return b[Math.floor(b.length / 2)];
+  };
+  var home = HOME || L.latLng(med(pts.map(function (p) {
+    return p[0];
+  })), med(pts.map(function (p) {
+    return p[1];
+  })));
+  var cand = [0, pts.length - 1];
+  var last = -1e12;
+  pts.forEach(function (p, i) {
+    if (i === 0 || i === pts.length - 1) return;
+    if (map.distance(home, p) < HOME_M) return;
+    if (ts[i] - last >= LABEL_MIN * 60) {
+      cand.push(i);
+      last = ts[i];
+    }
+  });
+  var boxes = [];
+  var _loop = function _loop() {
+    var i = cand[_i4];
+    var _lblSize = lblSize(),
+      W = _lblSize[0],
+      H = _lblSize[1];
+    var pt = map.latLngToContainerPoint(pts[i]);
+    var bx = [pt.x - W / 2, pt.y - H - 6, pt.x + W / 2, pt.y - 6];
+    if (boxes.some(function (q) {
+      return bx[0] < q[2] && bx[2] > q[0] && bx[1] < q[3] && bx[3] > q[1];
+    })) return 1; // continue
+    boxes.push(bx);
+    L.circleMarker(pts[i], {
+      radius: 4,
+      color: '#fff',
+      weight: 2,
+      fillColor: '#ff5a36',
+      fillOpacity: 1
+    }).bindTooltip(hm(ts[i]), {
+      permanent: true,
+      direction: 'top',
+      offset: [0, -4],
+      className: 'tlabel'
+    }).addTo(timeLayer);
+  };
+  for (var _i4 = 0; _i4 < cand.length; _i4++) {
+    if (_loop()) continue;
+  }
+}
+map.on('zoomend', layoutTimes);
+var WD = '日月火水木金土';
+function dayText(d) {
+  var t = new Date((d + 9 * 3600) * 1000);
+  return t.getUTCMonth() + 1 + '/' + t.getUTCDate() + '(' + WD[t.getUTCDay()] + ')';
+}
+function showDayLabel() {
+  var l = $('dayLabel');
+  if (viewDay === null) return;
+  if (isToday) {
+    l.textContent = '今日 ' + dayText(viewDay) + ' の軌跡';
+    l.className = '';
+  } else {
+    l.textContent = dayText(viewDay) + ' の軌跡（過去）';
+    l.className = 'past';
+  }
+  $('next').disabled = isToday;
+}
+function loadPast(_x) {
+  return _loadPast.apply(this, arguments);
+}
+function _loadPast() {
+  _loadPast = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee2(d) {
+    var msgs, ok, pts;
+    return _regenerator().w(function (_context2) {
+      while (1) switch (_context2.n) {
+        case 0:
+          // 過去の日：その日の 0:00〜24:00 をまとめて読み、全体が見えるように地図を合わせる
+          $('dayLabel').textContent = dayText(d) + ' を読み込み中…';
+          _context2.n = 1;
+          return get('/messages?data=' + encodeURIComponent(JSON.stringify({
+            from: d,
+            to: d + 86399,
+            fields: 'timestamp,position.latitude,position.longitude,position.valid'
+          })));
+        case 1:
+          msgs = _context2.v;
+          ok = msgs.filter(function (x) {
+            return x['position.latitude'] && x['position.valid'] !== false;
+          });
+          pts = ok.map(function (x) {
+            return [x['position.latitude'], x['position.longitude']];
+          });
+          drawTrail(pts, ok.map(function (x) {
+            return x.timestamp;
+          }));
+          drawTimes(pts, ok.map(function (x) {
+            return x.timestamp;
+          }));
+          if (pts.length) map.fitBounds(L.latLngBounds(pts), {
+            padding: [40, 40],
+            maxZoom: 18
+          });
+          showDayLabel();
+          if (!pts.length) $('dayLabel').textContent = dayText(d) + '：記録なし';
+        case 2:
+          return _context2.a(2);
+      }
+    }, _callee2);
+  }));
+  return _loadPast.apply(this, arguments);
+}
+function goDay(_x2) {
+  return _goDay.apply(this, arguments);
+} // 地図の移動（画面の 1/3 ずつ）と拡大縮小、猫の位置へ戻る
+function _goDay() {
+  _goDay = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee3(delta) {
+    var today, d, _t;
+    return _regenerator().w(function (_context3) {
+      while (1) switch (_context3.p = _context3.n) {
+        case 0:
+          if (token) {
+            _context3.n = 1;
+            break;
+          }
+          return _context3.a(2);
+        case 1:
+          today = jstMidnight();
+          d = delta === 0 ? today : (viewDay !== null && viewDay !== void 0 ? viewDay : today) + delta * 86400;
+          if (d > today) d = today;
+          viewDay = d;
+          isToday = d === today;
+          _context3.p = 2;
+          if (!isToday) {
+            _context3.n = 4;
+            break;
+          }
+          trailDay = 0;
+          _context3.n = 3;
+          return tick(true);
+        case 3:
+          _context3.n = 5;
+          break;
+        case 4:
+          _context3.n = 5;
+          return loadPast(d);
+        case 5:
+          _context3.n = 7;
+          break;
+        case 6:
+          _context3.p = 6;
+          _t = _context3.v;
+          $('dayLabel').textContent = '読み込みに失敗しました';
+        case 7:
+          return _context3.a(2);
+      }
+    }, _callee3, null, [[2, 6]]);
+  }));
+  return _goDay.apply(this, arguments);
+}
+var panBy = function panBy(fx, fy) {
+  var z = map.getSize();
+  map.panBy([z.x * fx / 3, z.y * fy / 3]);
+};
+$('up').onclick = function () {
+  return panBy(0, -1);
+};
+$('down').onclick = function () {
+  return panBy(0, 1);
+};
+$('left').onclick = function () {
+  return panBy(-1, 0);
+};
+$('right').onclick = function () {
+  return panBy(1, 0);
+};
+$('zin').onclick = function () {
+  return map.zoomIn();
+};
+$('zout').onclick = function () {
+  return map.zoomOut();
+};
+$('center').onclick = function () {
+  if (map.hasLayer(marker)) map.setView(marker.getLatLng(), Math.max(map.getZoom(), 16));
+};
+$('prev').onclick = function () {
+  return goDay(-1);
+};
+$('next').onclick = function () {
+  return goDay(1);
+};
+$('today').onclick = function () {
+  return goDay(0);
+};
+document.addEventListener('keydown', function (e) {
+  if ($('setup').style.display === 'flex') return;
+  if (e.key === 'ArrowLeft' && document.activeElement.tagName !== 'BUTTON') {
+    goDay(-1);
+  }
+  if (e.key === 'ArrowRight' && document.activeElement.tagName !== 'BUTTON') {
+    goDay(1);
+  }
+});
+function jstMidnight() {
+  var n = Math.floor(Date.now() / 1000),
+    j = n + 9 * 3600;
+  return n - j % 86400;
+} // 日本時間の今日 0:00（UNIX 秒）
+function get(_x3) {
+  return _get.apply(this, arguments);
+}
+function _get() {
+  _get = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee4(path) {
+    var r, _t2;
+    return _regenerator().w(function (_context4) {
+      while (1) switch (_context4.n) {
+        case 0:
+          _context4.n = 1;
+          return fetch(API + path, {
+            headers: {
+              Authorization: 'FlespiToken ' + token
+            }
+          });
+        case 1:
+          r = _context4.v;
+          if (!(r.status === 401 || r.status === 403)) {
+            _context4.n = 2;
+            break;
+          }
+          throw new Error('auth');
+        case 2:
+          if (r.ok) {
+            _context4.n = 3;
+            break;
+          }
+          throw new Error('http ' + r.status);
+        case 3:
+          _context4.n = 4;
+          return r.json();
+        case 4:
+          _t2 = _context4.v.result;
+          if (_t2) {
+            _context4.n = 5;
+            break;
+          }
+          _t2 = [];
+        case 5:
+          return _context4.a(2, _t2);
+      }
+    }, _callee4);
+  }));
+  return _get.apply(this, arguments);
+}
+var hm = function hm(t) {
+  return new Date(t * 1000).toLocaleTimeString('ja-JP', {
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+};
+function agoText(s) {
+  if (s < 60) return Math.max(0, Math.round(s)) + '秒前';
+  if (s < 3600) return Math.floor(s / 60) + '分前';
+  return Math.floor(s / 3600) + '時間' + Math.floor(s % 3600 / 60) + '分前';
+}
+// 異常の判定（10/27 オーナーと決定）：家の中心から ALARM_M の外で、ALARM_MIN 分以上受信なし＝動けないなどのトラブルの可能性。
+// MT710 は静止すると送信を止めるので「受信なし」≒「動いていない」。過去8日の家での40分超の空白37回は、中心から最大28m（30mで誤報0回）。
+// 地図の円（HOME_M=20m）は見た目用、判定は ALARM_M=30m。家の中で受信なしは正常（寝ている）なので赤にしない。
+var ALARM_M = 30,
+  ALARM_MIN = 40,
+  LOWBAT = 15;
+var ackServer = 0;
+try {
+  ackServer = +localStorage.getItem('catmon.ack') || 0;
+} catch (e) {}
+$('ackBtn').onclick = function () {
+  ackServer = lastServer;
+  try {
+    localStorage.setItem('catmon.ack', String(lastServer));
+  } catch (e) {}
+  paint();
+};
+var lastPos = null,
+  lastPosTs = 0,
+  lastBat = null,
+  onCharger = false;
+function paint() {
+  if (!lastServer) return;
+  var s = Date.now() / 1000 - lastServer,
+    mins = s / 60,
+    st = $('status'),
+    info = $('alarmInfo');
+  $('ago').textContent = agoText(s);
+  $('homeWarn').style.display = HOME ? 'none' : 'block';
+  var dist = HOME && lastPos ? Math.round(map.distance(HOME, lastPos)) : null,
+    out = dist != null && dist > ALARM_M;
+  var dot = document.querySelector('.catdot');
+  var alarm = false;
+  info.style.display = 'none';
+  if (mins <= GREEN_MIN) {
+    st.className = 'ok';
+    st.textContent = '受信中';
+  } else if (onCharger) {
+    st.className = 'home';
+    st.textContent = '充電器につながっています';
+  } else if (dist != null && !out) {
+    st.className = 'home';
+    st.textContent = '家で休んでいます';
+  } else if (out && mins >= ALARM_MIN && ackServer === lastServer) {
+    st.className = 'warn';
+    st.textContent = '確認済み：家の外で' + Math.floor(mins) + '分 受信なし';
+  } else if (out && mins >= ALARM_MIN) {
+    alarm = true;
+    st.className = 'alarm';
+    st.textContent = '異常：家の外で' + Math.floor(mins) + '分 動きなし';
+    info.style.display = 'block';
+    info.innerHTML = '最後の場所：家から約' + dist + 'm（' + hm(lastPosTs) + '）＝地図の赤い点' + (lastBat != null && lastBat <= LOWBAT ? '<br>電池' + lastBat + '%：電池切れの可能性あり' : '');
+  } else if (out) {
+    st.className = 'warn';
+    st.textContent = '家の外で受信なし ' + Math.floor(mins) + '分';
+  } else if (mins <= RED_MIN) {
+    st.className = 'warn';
+    st.textContent = 'しばらく受信なし';
+  } else {
+    st.className = 'bad';
+    st.textContent = '長い間 受信なし';
+  }
+  if (dot) dot.classList.toggle('alarm-dot', alarm);
+  var ab = $('ackBtn'),
+    wasHidden = ab.style.display === 'none';
+  ab.style.display = alarm ? 'block' : 'none';
+  if (alarm && wasHidden) ab.focus(); // リモコンの決定ボタンですぐ押せるように
+  $('sirenBox').style.display = alarm ? 'block' : 'none';
+  $('help').style.display = alarm ? 'none' : '';
+  $('reset').style.display = alarm ? 'none' : '';
+  $('rule').style.display = alarm ? 'none' : ''; // 異常中は帯と回転灯そのものが出ているので、説明の枠は隠して画面に収める   // 異常のときは説明文を隠して、右欄を画面に収める
+}
+function tick(_x4) {
+  return _tick.apply(this, arguments);
+} // 10/27 「電池の残り」行は削除（オーナー：休んでいる間は減り方が変わり当てにならない）
+function _tick() {
+  _tick = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee5(force) {
+    var t, tel, v, lat, lon, b, chg, full, chgTs, f, ev, day0, msgs, _i6, x, _t3;
+    return _regenerator().w(function (_context5) {
+      while (1) switch (_context5.p = _context5.n) {
+        case 0:
+          if (token) {
+            _context5.n = 1;
+            break;
+          }
+          showSetup();
+          return _context5.a(2);
+        case 1:
+          _context5.p = 1;
+          _context5.n = 2;
+          return updateHome().catch(function () {});
+        case 2:
+          _context5.n = 3;
+          return get('/telemetry/position.latitude,position.longitude,position.valid,timestamp,server.timestamp,battery.level,battery.voltage,battery.charging.status,event.code');
+        case 3:
+          t = _context5.v[0];
+          tel = t && t.telemetry || {};
+          v = function v(k) {
+            return tel[k] && tel[k].value;
+          };
+          lastServer = v('server.timestamp') || v('timestamp') || 0;
+          lat = v('position.latitude'), lon = v('position.longitude');
+          if (lat && lon) {
+            lastPos = L.latLng(lat, lon);
+            lastPosTs = tel['position.latitude'].ts;
+            marker.setLatLng([lat, lon]);
+            if (!map.hasLayer(marker)) marker.addTo(map);
+            if ((first || force) && isToday) {
+              map.setView([lat, lon], 17);
+              first = false;
+            }
+            $('ptime').textContent = tel['position.latitude'] ? (tel['position.latitude'].ts < jstMidnight() ? dayText(tel['position.latitude'].ts - (tel['position.latitude'].ts + 9 * 3600) % 86400).replace(/\(.\)/, '') + ' ' : '') + hm(tel['position.latitude'].ts) : '—';
+          }
+          b = v('battery.level');
+          lastBat = b;
+          chg = v('battery.charging.status') === true; // 10/29 満充電（FULL）になると充電器につないだままでも charging.status＝false が届く［実測：10/29 20:40 100%・4.187V で false］→ 40分後に誤報。
+          // 最後の受信が 100%・4.15V以上なら充電器の上とみなす（外せば送信が再開し、電圧も下がる）
+          full = !chg && b >= 100 && (v('battery.voltage') || 0) >= 4.15;
+          onCharger = chg || full;
+          $('battIcon').classList.toggle('charging', chg);
+          $('battK').classList.toggle('charging', chg);
+          $('battK').textContent = chg ? '充電中' : full ? '充電完了' : '電池残量';
+          // 10/28：充電中の MT710 は満充電（FULL）まで何も送らない［実測：10/26 07:36〜09:28 送信なし→FULL 100%］。
+          // つないだ直後の％は充電器の電圧で高く出る（36%→4分後61%、3.72V→3.87V［実測］）ので、充電中は％の代わりに開始時刻を出す
+          chgTs = tel['battery.charging.status'] && tel['battery.charging.status'].ts;
+          $('bat').textContent = chg && chgTs ? hm(chgTs) + 'から' : b != null ? b + '%' : '—';
+          $('bat').style.fontSize = chg ? '3vh' : '';
+          if (b != null) {
+            f = $('battFill');
+            f.style.width = Math.max(0, Math.min(100, b)) + '%';
+            f.style.background = b <= LOWBAT ? 'var(--bad)' : b <= 40 ? 'var(--warn)' : 'var(--ok)';
+          }
+          ev = v('event.code');
+          $('mov').textContent = ev === 'STILL' ? '静止' : ev === 'AUTO' ? '移動中' : ev || '—';
+          // 軌跡：今日を見ているときは 0:00 から、2回目からは前回の続きだけ読む。日付が変わったら今日に切り替えて描き直す
+          day0 = jstMidnight();
+          if (viewDay === null || viewDay === trailDay && day0 !== trailDay && viewDay >= day0 - 86400 && isToday) viewDay = day0;
+          isToday = viewDay === day0;
+          if (!isToday) {
+            _context5.n = 5;
+            break;
+          }
+          if (trailDay !== day0) {
+            trailDay = day0;
+            trailPts = [];
+            trailTs = [];
+            trailLast = day0 - 1;
+            timeLayer.clearLayers();
+            trailLayer.clearLayers();
+          }
+          _context5.n = 4;
+          return get('/messages?data=' + encodeURIComponent(JSON.stringify({
+            from: trailLast + 1,
+            fields: 'timestamp,position.latitude,position.longitude,position.valid'
+          })));
+        case 4:
+          msgs = _context5.v;
+          for (_i6 = 0; _i6 < msgs.length; _i6++) {
+            x = msgs[_i6];
+            if (x.timestamp > trailLast) trailLast = x.timestamp;
+            if (x['position.latitude'] && x['position.valid'] !== false) {
+              trailPts.push([x['position.latitude'], x['position.longitude']]);
+              trailTs.push(x.timestamp);
+            }
+          }
+          if (msgs.length || !timeLayer.getLayers().length) {
+            drawTrail(trailPts, trailTs);
+            drawTimes(trailPts, trailTs);
+          }
+        case 5:
+          showDayLabel();
+          paint();
+          _context5.n = 7;
+          break;
+        case 6:
+          _context5.p = 6;
+          _t3 = _context5.v;
+          if (_t3.message === 'auth') {
+            $('status').className = 'bad';
+            $('status').textContent = 'トークンが使えません';
+            showSetup();
+          } else {
+            $('status').className = 'bad';
+            $('status').textContent = '通信エラー（再試行中）';
+          }
+        case 7:
+          return _context5.a(2);
+      }
+    }, _callee5, null, [[1, 6]]);
+  }));
+  return _tick.apply(this, arguments);
+}
+tick();
+setInterval(tick, 10000);
+setInterval(paint, 1000);
+</script>
+</body>
+</html>
