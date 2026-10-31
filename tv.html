@@ -97,6 +97,17 @@
     #reset{font-size:13px;padding:8px 12px}
     .tlabel{font-size:12px} .rlabel{font-size:12px}
   }
+
+  /* テレビ用（古いブラウザ）の上書き */
+  #setup,#mapwrap #map{top:0;right:0;bottom:0;left:0}
+  #setup>*{margin:1.5vh 0}
+  #side>*{margin-bottom:1.1vh}
+  #days button{margin:0 .4vw}
+  #pad{display:block;width:24vh}
+  #pad>*{float:left;width:7vh;height:7vh;margin:.4vh}
+  #zoom button{margin-bottom:.8vh}
+  #statusWrap #sirenBox{margin-right:1vw}
+  #sample>*{margin:.3vh .4vw}
 </style>
 </head>
 <body>
@@ -941,6 +952,6 @@ setInterval(paint, 1000);
 window.__ok=1;
 </script>
 <div id="diag" style="display:none;position:fixed;left:0;right:0;bottom:0;z-index:20000;background:#000;color:#0f0;font:2.4vh monospace;padding:1vh;word-break:break-all"></div>
-<script>window.__diagShow&&window.__diagShow("ブラウザ: "+navigator.userAgent);window.__diagShow&&window.__diagShow("版 tv3 / 本体の動作: "+(window.__ok?"OK":"止まっている"));</script>
+<script>window.__diagShow&&window.__diagShow("ブラウザ: "+navigator.userAgent);window.__diagShow&&window.__diagShow("版 tv4 / 本体の動作: "+(window.__ok?"OK":"止まっている"));</script>
 </body>
 </html>
