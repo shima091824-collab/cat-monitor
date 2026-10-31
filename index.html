@@ -299,7 +299,8 @@ async function get(path){
   if(!r.ok) throw new Error('http '+r.status);
   return (await r.json()).result||[];
 }
-const hm=t=>new Date(t*1000).toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'});
+// 10/31 テレビ（Firefox 34）は toLocaleTimeString の指定を無視して秒まで出した［オーナー報告］→ 日本時間の HH:MM を自前で作る
+const hm=t=>{const d=new Date((t+9*3600)*1000), p=n=>(n<10?'0':'')+n; return p(d.getUTCHours())+':'+p(d.getUTCMinutes())};
 function agoText(s){ if(s<60) return Math.max(0,Math.round(s))+'秒前'; if(s<3600) return Math.floor(s/60)+'分前'; return Math.floor(s/3600)+'時間'+Math.floor(s%3600/60)+'分前' }
 // 異常の判定（10/27 オーナーと決定）：家の中心から ALARM_M の外で、ALARM_MIN 分以上受信なし＝動けないなどのトラブルの可能性。
 // MT710 は静止すると送信を止めるので「受信なし」≒「動いていない」。過去8日の家での40分超の空白37回は、中心から最大28m（30mで誤報0回）。

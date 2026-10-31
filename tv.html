@@ -833,7 +833,7 @@ function jstMidnight() {
 } // 日本時間の今日 0:00（UNIX 秒）
 function get(_x5) {
   return _get.apply(this, arguments);
-}
+} // 10/31 テレビ（Firefox 34）は toLocaleTimeString の指定を無視して秒まで出した［オーナー報告］→ 日本時間の HH:MM を自前で作る
 function _get() {
   _get = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee7(path) {
     var r, _t3;
@@ -877,10 +877,11 @@ function _get() {
   return _get.apply(this, arguments);
 }
 var hm = function hm(t) {
-  return new Date(t * 1000).toLocaleTimeString('ja-JP', {
-    hour: '2-digit',
-    minute: '2-digit'
-  });
+  var d = new Date((t + 9 * 3600) * 1000),
+    p = function p(n) {
+      return (n < 10 ? '0' : '') + n;
+    };
+  return p(d.getUTCHours()) + ':' + p(d.getUTCMinutes());
 };
 function agoText(s) {
   if (s < 60) return Math.max(0, Math.round(s)) + '秒前';
@@ -1086,6 +1087,6 @@ setInterval(paint, 1000);
 window.__ok=1;
 </script>
 <div id="diag" style="display:none;position:fixed;left:0;right:0;bottom:0;z-index:20000;background:#000;color:#0f0;font:2.4vh monospace;padding:1vh;word-break:break-all"></div>
-<script>window.__diagShow&&window.__diagShow("ブラウザ: "+navigator.userAgent);window.__diagShow&&window.__diagShow("版 tv6 / 本体の動作: "+(window.__ok?"OK":"止まっている"));</script>
+<script>window.__diagShow&&window.__diagShow("ブラウザ: "+navigator.userAgent);window.__diagShow&&window.__diagShow("版 tv7 / 本体の動作: "+(window.__ok?"OK":"止まっている"));</script>
 </body>
 </html>
