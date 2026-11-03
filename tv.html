@@ -460,9 +460,48 @@ var spanColor = function spanColor(t) {
   return 'rgb(' + m(p[0], q[0], u) + ',' + m(p[1], q[1], u) + ',' + m(p[2], q[2], u) + ')';
 };
 var NCOL = 8; // 色の段階（線の本数＝段階数×外出回数。Fire TV の負荷を抑える）
+// 11/04 夜中の在宅中に室内の GPS のずれで 100m 以上の線が出た（「有効」の印付きで届く）［オーナー指摘・実測］→ 線と札から除く。
+// 家の円の外の点が続く区間で、最初の点から最後の点まで BLIP_SEC 以内に収まり、円に戻ったものを除く（まだ戻っていない区間は残す）
+var BLIP_SEC = 120;
+function dropBlips(pts, ts) {
+  if (!pts.length) return [pts, ts];
+  var med = function med(a) {
+    var b = [].concat(a).sort(function (x, y) {
+      return x - y;
+    });
+    return b[Math.floor(b.length / 2)];
+  };
+  var home = HOME || L.latLng(med(pts.map(function (p) {
+    return p[0];
+  })), med(pts.map(function (p) {
+    return p[1];
+  })));
+  var keep = pts.map(function () {
+    return true;
+  });
+  var s = -1;
+  pts.forEach(function (p, i) {
+    if (map.distance(home, p) >= HOME_M) {
+      if (s < 0) s = i;
+      return;
+    }
+    if (s >= 0) {
+      if (ts[i - 1] - ts[s] <= BLIP_SEC) for (var j = s; j < i; j++) keep[j] = false;
+      s = -1;
+    }
+  });
+  return [pts.filter(function (p, i) {
+    return keep[i];
+  }), ts.filter(function (t, i) {
+    return keep[i];
+  })];
+}
 function drawTrail(pts, ts) {
   trailLayer.clearLayers();
   if (!pts.length) return;
+  var _dropBlips = dropBlips(pts, ts);
+  pts = _dropBlips[0];
+  ts = _dropBlips[1];
   var med = function med(a) {
     var b = [].concat(a).sort(function (x, y) {
       return x - y;
@@ -619,8 +658,9 @@ function drawTimes(pts, ts) {
   layoutTimes();
 }
 function layoutTimes() {
-  var pts = tPts,
-    ts = tTs;
+  var _dropBlips2 = dropBlips(tPts, tTs),
+    pts = _dropBlips2[0],
+    ts = _dropBlips2[1];
   timeLayer.clearLayers();
   if (!pts.length) return;
   var med = function med(a) {
@@ -722,7 +762,9 @@ function _loadPast() {
           drawTimes(pts, ok.map(function (x) {
             return x.timestamp;
           }));
-          if (pts.length) map.fitBounds(L.latLngBounds(pts), {
+          if (pts.length) map.fitBounds(L.latLngBounds(dropBlips(pts, ok.map(function (x) {
+            return x.timestamp;
+          }))[0]), {
             padding: [40, 40],
             maxZoom: 18
           });
@@ -1089,6 +1131,6 @@ window.__ok=1;
 </script>
 <div id="diag" style="display:none;position:fixed;left:0;right:0;bottom:0;z-index:20000;background:#000;color:#0f0;font:2.4vh monospace;padding:1vh;word-break:break-all"></div>
 <script>if(!window.__ok&&window.__diagShow){window.__diagShow("ブラウザ: "+navigator.userAgent);window.__diagShow("版 tv8 / 本体の動作: 止まっている")}</script>
-<script>(function(){var V="202610310517";function chk(){try{var x=new XMLHttpRequest();x.open("GET",location.pathname+"?t="+new Date().getTime(),true);x.onload=function(){var m=/var V="(\d+)"/.exec(x.responseText);if(x.status===200&&m&&m[1]!==V){location.replace(location.pathname+"?v="+m[1])}};x.send()}catch(e){}}chk();setInterval(chk,1800000)})();</script>
+<script>(function(){var V="202611032229";function chk(){try{var x=new XMLHttpRequest();x.open("GET",location.pathname+"?t="+new Date().getTime(),true);x.onload=function(){var m=/var V="(\d+)"/.exec(x.responseText);if(x.status===200&&m&&m[1]!==V){location.replace(location.pathname+"?v="+m[1])}};x.send()}catch(e){}}chk();setInterval(chk,1800000)})();</script>
 </body>
 </html>

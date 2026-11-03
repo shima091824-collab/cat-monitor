@@ -198,8 +198,23 @@ const trailLayer=L.layerGroup().addTo(map);
 const spanColor=t=>{const a=[255,184,140], b=[240,80,40], c=[140,20,10]; const m=(x,y,u)=>Math.round(x+(y-x)*u);
   const [p,q,u]=t<.5?[a,b,t*2]:[b,c,(t-.5)*2]; return 'rgb('+m(p[0],q[0],u)+','+m(p[1],q[1],u)+','+m(p[2],q[2],u)+')'};
 const NCOL=8;   // 色の段階（線の本数＝段階数×外出回数。Fire TV の負荷を抑える）
+// 11/04 夜中の在宅中に室内の GPS のずれで 100m 以上の線が出た（「有効」の印付きで届く）［オーナー指摘・実測］→ 線と札から除く。
+// 家の円の外の点が続く区間で、最初の点から最後の点まで BLIP_SEC 以内に収まり、円に戻ったものを除く（まだ戻っていない区間は残す）
+const BLIP_SEC=120;
+function dropBlips(pts,ts){
+  if(!pts.length) return [pts,ts];
+  const med=a=>{const b=[...a].sort((x,y)=>x-y);return b[Math.floor(b.length/2)]};
+  const home=HOME||L.latLng(med(pts.map(p=>p[0])),med(pts.map(p=>p[1])));
+  const keep=pts.map(()=>true); let s=-1;
+  pts.forEach((p,i)=>{
+    if(map.distance(home,p)>=HOME_M){ if(s<0) s=i; return }
+    if(s>=0){ if(ts[i-1]-ts[s]<=BLIP_SEC) for(let j=s;j<i;j++) keep[j]=false; s=-1 }
+  });
+  return [pts.filter((p,i)=>keep[i]),ts.filter((t,i)=>keep[i])];
+}
 function drawTrail(pts,ts){
   trailLayer.clearLayers(); if(!pts.length) return;
+  [pts,ts]=dropBlips(pts,ts);
   const med=a=>{const b=[...a].sort((x,y)=>x-y);return b[Math.floor(b.length/2)]};
   const home=HOME||L.latLng(med(pts.map(p=>p[0])),med(pts.map(p=>p[1])));
   L.circle(home,{radius:HOME_M,color:'#6fa8ff',weight:2,opacity:.7,fill:true,fillColor:'#6fa8ff',fillOpacity:.07,dashArray:'4 8'}).addTo(trailLayer);
@@ -248,7 +263,7 @@ const timeLayer=L.layerGroup().addTo(map);
 let tPts=[], tTs=[];
 function drawTimes(pts,ts){ tPts=pts; tTs=ts; layoutTimes() }
 function layoutTimes(){
-  const pts=tPts, ts=tTs; timeLayer.clearLayers(); if(!pts.length) return;
+  const [pts,ts]=dropBlips(tPts,tTs); timeLayer.clearLayers(); if(!pts.length) return;
   const med=a=>{const b=[...a].sort((x,y)=>x-y);return b[Math.floor(b.length/2)]};
   const home=HOME||L.latLng(med(pts.map(p=>p[0])),med(pts.map(p=>p[1])));
   const cand=[0,pts.length-1]; let last=-1e12;
@@ -273,7 +288,7 @@ async function loadPast(d){
   const msgs=await get('/messages?data='+encodeURIComponent(JSON.stringify({from:d,to:d+86399,fields:'timestamp,position.latitude,position.longitude,position.valid'})));
   const ok=msgs.filter(x=>x['position.latitude']&&x['position.valid']!==false);
   const pts=ok.map(x=>[x['position.latitude'],x['position.longitude']]);
-  drawTrail(pts,ok.map(x=>x.timestamp)); drawTimes(pts,ok.map(x=>x.timestamp)); if(pts.length) map.fitBounds(L.latLngBounds(pts),{padding:[40,40],maxZoom:18});
+  drawTrail(pts,ok.map(x=>x.timestamp)); drawTimes(pts,ok.map(x=>x.timestamp)); if(pts.length) map.fitBounds(L.latLngBounds(dropBlips(pts,ok.map(x=>x.timestamp))[0]),{padding:[40,40],maxZoom:18});
   showDayLabel(); if(!pts.length) $('dayLabel').textContent=dayText(d)+'：記録なし';
 }
 async function goDay(delta){
