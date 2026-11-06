@@ -200,7 +200,9 @@ const spanColor=t=>{const a=[255,184,140], b=[240,80,40], c=[140,20,10]; const m
 const NCOL=8;   // 色の段階（線の本数＝段階数×外出回数。Fire TV の負荷を抑える）
 // 11/04 夜中の在宅中に室内の GPS のずれで 100m 以上の線が出た（「有効」の印付きで届く）［オーナー指摘・実測］→ 線と札から除く。
 // 家の円の外の点が続く区間で、最初の点から最後の点まで BLIP_SEC 以内に収まり、円に戻ったものを除く（まだ戻っていない区間は残す）
-const BLIP_SEC=120;
+// 11/06 昼の表示が減ったとの指摘［オーナー］→ 区間の最初の点が 0〜6 時（日本時間）のものだけ除き、昼は全部描く（試験運用）
+const BLIP_SEC=120, BLIP_H0=0, BLIP_H1=6;
+const isNight=t=>{const h=new Date((t+9*3600)*1000).getUTCHours(); return h>=BLIP_H0&&h<BLIP_H1};
 function dropBlips(pts,ts){
   if(!pts.length) return [pts,ts];
   const med=a=>{const b=[...a].sort((x,y)=>x-y);return b[Math.floor(b.length/2)]};
@@ -208,7 +210,7 @@ function dropBlips(pts,ts){
   const keep=pts.map(()=>true); let s=-1;
   pts.forEach((p,i)=>{
     if(map.distance(home,p)>=HOME_M){ if(s<0) s=i; return }
-    if(s>=0){ if(ts[i-1]-ts[s]<=BLIP_SEC) for(let j=s;j<i;j++) keep[j]=false; s=-1 }
+    if(s>=0){ if(ts[i-1]-ts[s]<=BLIP_SEC&&isNight(ts[s])) for(let j=s;j<i;j++) keep[j]=false; s=-1 }
   });
   return [pts.filter((p,i)=>keep[i]),ts.filter((t,i)=>keep[i])];
 }
