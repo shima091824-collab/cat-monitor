@@ -258,7 +258,7 @@ let trailDay=0, trailPts=[], trailTs=[], trailLast=0, viewDay=null, isToday=true
 // その日いちばん長くいた場所（緯度・経度の中央値）から HOME_M 以内は札を付けない（最初と最後の点は除く）。
 // 外では LABEL_MIN 分ごとに候補を作り、画面上で既に置いた札と重なるものだけ省く。拡大すると札が増える。
 const HOME_M=20, LABEL_MIN=0.5;   // 10/27 19:00 家の円を半径60m→20mに（オーナー指示）   // 10/27：2分→30秒（拡大しても札が増えないとの指摘。間引きは画面上の重なりで行う）
-const STOP_GAP=600, STOP_FAR=40, STOP_R=30;
+const BACK_FAR=40;
 const lblSize=()=>{const f=window.innerHeight*0.017; return [f*3.3+14, f*1.5+6]};   // 札の大きさ（.tlabel の文字 1.7vh に合わせる）
 const timeLayer=L.layerGroup().addTo(map);
 let tPts=[], tTs=[];
@@ -267,20 +267,17 @@ function layoutTimes(){
   const [pts,ts]=dropBlips(tPts,tTs); timeLayer.clearLayers(); if(!pts.length) return;
   const med=a=>{const b=[...a].sort((x,y)=>x-y);return b[Math.floor(b.length/2)]};
   const home=HOME||L.latLng(med(pts.map(p=>p[0])),med(pts.map(p=>p[1])));
-  // 11/06 停止の札（オーナー指示）：家から STOP_FAR m 以上離れた所で送信が STOP_GAP 秒以上止まったら（静止中は送信が止まる）
-  // 「始まり〜動き出し 停止」の札を出し、動き出した点の時刻も必ず出す。始まり＝止まる直前に STOP_R m 以内にとどまり始めた時刻
-  const stops=[], inStop=new Set();
-  for(let i=0;i<pts.length-1;i++){
-    if(ts[i+1]-ts[i]<STOP_GAP||map.distance(home,pts[i])<STOP_FAR) continue;
-    let j=i; while(j>0&&map.distance(pts[j-1],pts[i])<=STOP_R&&ts[i]-ts[j-1]<3600) j--;
-    for(let k=j;k<=i;k++) inStop.add(k);
-    stops.push({i:i,text:hm(ts[j])+'〜'+hm(ts[i+1])+' 停止'},{i:i+1,text:hm(ts[i+1])});
-  }
-  // 停止の札・動き出し・最初と最後の点は必ず出す（重なっても省かない）。ほかは既に置いた札と重なれば省く
-  const cand=stops.map(c=>({i:c.i,text:c.text,force:true}));
-  [0,pts.length-1].forEach(i=>{ if(!stops.some(c=>c.i===i)) cand.push({i:i,text:hm(ts[i]),force:true}) });
+  // 11/06 帰宅の札（オーナー指示「何時ごろに家の周り20mに入ったか知りたい」）：外出（円の外で BACK_FAR m 以上離れた区間）の後、
+  // 円の中に入った最初の点に「時刻 帰宅」を必ず出す。円のすぐ外をうろつくだけのずれには付けない
+  const backs=[]; let far=0;
+  pts.forEach((p,i)=>{ const d=map.distance(home,p);
+    if(d>=HOME_M){ far=Math.max(far,d); return }
+    if(far>=BACK_FAR) backs.push({i:i,text:hm(ts[i])+' 帰宅'}); far=0 });
+  // 帰宅・最初と最後の点は必ず出す（重なっても省かない）。ほかは既に置いた札と重なれば省く
+  const cand=backs.map(c=>({i:c.i,text:c.text,force:true}));
+  [0,pts.length-1].forEach(i=>{ if(!backs.some(c=>c.i===i)) cand.push({i:i,text:hm(ts[i]),force:true}) });
   let last=-1e12;
-  pts.forEach((p,i)=>{ if(i===0||i===pts.length-1||inStop.has(i)||stops.some(c=>c.i===i)) return; if(map.distance(home,p)<HOME_M) return;
+  pts.forEach((p,i)=>{ if(i===0||i===pts.length-1) return; if(map.distance(home,p)<HOME_M) return;
     if(ts[i]-last>=LABEL_MIN*60){ cand.push({i:i,text:hm(ts[i])}); last=ts[i] } });
   const boxes=[];
   for(const c of cand){

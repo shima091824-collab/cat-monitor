@@ -645,9 +645,7 @@ var trailDay = 0,
 // 外では LABEL_MIN 分ごとに候補を作り、画面上で既に置いた札と重なるものだけ省く。拡大すると札が増える。
 var HOME_M = 20,
   LABEL_MIN = 0.5; // 10/27 19:00 家の円を半径60m→20mに（オーナー指示）   // 10/27：2分→30秒（拡大しても札が増えないとの指摘。間引きは画面上の重なりで行う）
-var STOP_GAP = 600,
-  STOP_FAR = 40,
-  STOP_R = 30;
+var BACK_FAR = 40;
 var lblSize = function lblSize() {
   var f = window.innerHeight * 0.017;
   return [f * 3.3 + 14, f * 1.5 + 6];
@@ -677,25 +675,24 @@ function layoutTimes() {
   })), med(pts.map(function (p) {
     return p[1];
   })));
-  // 11/06 停止の札（オーナー指示）：家から STOP_FAR m 以上離れた所で送信が STOP_GAP 秒以上止まったら（静止中は送信が止まる）
-  // 「始まり〜動き出し 停止」の札を出し、動き出した点の時刻も必ず出す。始まり＝止まる直前に STOP_R m 以内にとどまり始めた時刻
-  var stops = [],
-    inStop = new Set();
-  for (var i = 0; i < pts.length - 1; i++) {
-    if (ts[i + 1] - ts[i] < STOP_GAP || map.distance(home, pts[i]) < STOP_FAR) continue;
-    var j = i;
-    while (j > 0 && map.distance(pts[j - 1], pts[i]) <= STOP_R && ts[i] - ts[j - 1] < 3600) j--;
-    for (var k = j; k <= i; k++) inStop.add(k);
-    stops.push({
+  // 11/06 帰宅の札（オーナー指示「何時ごろに家の周り20mに入ったか知りたい」）：外出（円の外で BACK_FAR m 以上離れた区間）の後、
+  // 円の中に入った最初の点に「時刻 帰宅」を必ず出す。円のすぐ外をうろつくだけのずれには付けない
+  var backs = [];
+  var far = 0;
+  pts.forEach(function (p, i) {
+    var d = map.distance(home, p);
+    if (d >= HOME_M) {
+      far = Math.max(far, d);
+      return;
+    }
+    if (far >= BACK_FAR) backs.push({
       i: i,
-      text: hm(ts[j]) + '〜' + hm(ts[i + 1]) + ' 停止'
-    }, {
-      i: i + 1,
-      text: hm(ts[i + 1])
+      text: hm(ts[i]) + ' 帰宅'
     });
-  }
-  // 停止の札・動き出し・最初と最後の点は必ず出す（重なっても省かない）。ほかは既に置いた札と重なれば省く
-  var cand = stops.map(function (c) {
+    far = 0;
+  });
+  // 帰宅・最初と最後の点は必ず出す（重なっても省かない）。ほかは既に置いた札と重なれば省く
+  var cand = backs.map(function (c) {
     return {
       i: c.i,
       text: c.text,
@@ -703,7 +700,7 @@ function layoutTimes() {
     };
   });
   [0, pts.length - 1].forEach(function (i) {
-    if (!stops.some(function (c) {
+    if (!backs.some(function (c) {
       return c.i === i;
     })) cand.push({
       i: i,
@@ -713,9 +710,7 @@ function layoutTimes() {
   });
   var last = -1e12;
   pts.forEach(function (p, i) {
-    if (i === 0 || i === pts.length - 1 || inStop.has(i) || stops.some(function (c) {
-      return c.i === i;
-    })) return;
+    if (i === 0 || i === pts.length - 1) return;
     if (map.distance(home, p) < HOME_M) return;
     if (ts[i] - last >= LABEL_MIN * 60) {
       cand.push({
@@ -1176,6 +1171,6 @@ window.__ok=1;
 </script>
 <div id="diag" style="display:none;position:fixed;left:0;right:0;bottom:0;z-index:20000;background:#000;color:#0f0;font:2.4vh monospace;padding:1vh;word-break:break-all"></div>
 <script>if(!window.__ok&&window.__diagShow){window.__diagShow("ブラウザ: "+navigator.userAgent);window.__diagShow("版 tv8 / 本体の動作: 止まっている")}</script>
-<script>(function(){var V="202611060357";function chk(){try{var x=new XMLHttpRequest();x.open("GET",location.pathname+"?t="+new Date().getTime(),true);x.onload=function(){var m=/var V="(\d+)"/.exec(x.responseText);if(x.status===200&&m&&m[1]!==V){location.replace(location.pathname+"?v="+m[1])}};x.send()}catch(e){}}chk();setInterval(chk,1800000)})();</script>
+<script>(function(){var V="202611060405";function chk(){try{var x=new XMLHttpRequest();x.open("GET",location.pathname+"?t="+new Date().getTime(),true);x.onload=function(){var m=/var V="(\d+)"/.exec(x.responseText);if(x.status===200&&m&&m[1]!==V){location.replace(location.pathname+"?v="+m[1])}};x.send()}catch(e){}}chk();setInterval(chk,1800000)})();</script>
 </body>
 </html>
