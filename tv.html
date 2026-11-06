@@ -462,14 +462,7 @@ var spanColor = function spanColor(t) {
 var NCOL = 8; // 色の段階（線の本数＝段階数×外出回数。Fire TV の負荷を抑える）
 // 11/04 夜中の在宅中に室内の GPS のずれで 100m 以上の線が出た（「有効」の印付きで届く）［オーナー指摘・実測］→ 線と札から除く。
 // 家の円の外の点が続く区間で、最初の点から最後の点まで BLIP_SEC 以内に収まり、円に戻ったものを除く（まだ戻っていない区間は残す）
-// 11/06 昼の表示が減ったとの指摘［オーナー］→ 区間の最初の点が 0〜6 時（日本時間）のものだけ除き、昼は全部描く（試験運用）
-var BLIP_SEC = 120,
-  BLIP_H0 = 0,
-  BLIP_H1 = 6;
-var isNight = function isNight(t) {
-  var h = new Date((t + 9 * 3600) * 1000).getUTCHours();
-  return h >= BLIP_H0 && h < BLIP_H1;
-};
+var BLIP_SEC = 120;
 function dropBlips(pts, ts) {
   if (!pts.length) return [pts, ts];
   var med = function med(a) {
@@ -493,7 +486,7 @@ function dropBlips(pts, ts) {
       return;
     }
     if (s >= 0) {
-      if (ts[i - 1] - ts[s] <= BLIP_SEC && isNight(ts[s])) for (var j = s; j < i; j++) keep[j] = false;
+      if (ts[i - 1] - ts[s] <= BLIP_SEC) for (var j = s; j < i; j++) keep[j] = false;
       s = -1;
     }
   });
@@ -1138,6 +1131,6 @@ window.__ok=1;
 </script>
 <div id="diag" style="display:none;position:fixed;left:0;right:0;bottom:0;z-index:20000;background:#000;color:#0f0;font:2.4vh monospace;padding:1vh;word-break:break-all"></div>
 <script>if(!window.__ok&&window.__diagShow){window.__diagShow("ブラウザ: "+navigator.userAgent);window.__diagShow("版 tv8 / 本体の動作: 止まっている")}</script>
-<script>(function(){var V="202611060345";function chk(){try{var x=new XMLHttpRequest();x.open("GET",location.pathname+"?t="+new Date().getTime(),true);x.onload=function(){var m=/var V="(\d+)"/.exec(x.responseText);if(x.status===200&&m&&m[1]!==V){location.replace(location.pathname+"?v="+m[1])}};x.send()}catch(e){}}chk();setInterval(chk,1800000)})();</script>
+<script>(function(){var V="202611060353";function chk(){try{var x=new XMLHttpRequest();x.open("GET",location.pathname+"?t="+new Date().getTime(),true);x.onload=function(){var m=/var V="(\d+)"/.exec(x.responseText);if(x.status===200&&m&&m[1]!==V){location.replace(location.pathname+"?v="+m[1])}};x.send()}catch(e){}}chk();setInterval(chk,1800000)})();</script>
 </body>
 </html>
