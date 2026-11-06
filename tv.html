@@ -674,7 +674,7 @@ var trailDay = 0,
 // 外では LABEL_MIN 分ごとに候補を作り、画面上で既に置いた札と重なるものだけ省く。拡大すると札が増える。
 var HOME_M = 20,
   LABEL_MIN = 0.5,
-  ARROW_M = 30; // 10/27 19:00 家の円を半径60m→20mに（オーナー指示）   // 10/27：2分→30秒（拡大しても札が増えないとの指摘。間引きは画面上の重なりで行う）
+  ARROW_M = 50; // 10/27 19:00 家の円を半径60m→20mに（オーナー指示）   // 10/27：2分→30秒（拡大しても札が増えないとの指摘。間引きは画面上の重なりで行う）
 var BACK_FAR = 40;
 var lblSize = function lblSize() {
   var f = window.innerHeight * 0.017;
@@ -1201,6 +1201,6 @@ window.__ok=1;
 </script>
 <div id="diag" style="display:none;position:fixed;left:0;right:0;bottom:0;z-index:20000;background:#000;color:#0f0;font:2.4vh monospace;padding:1vh;word-break:break-all"></div>
 <script>if(!window.__ok&&window.__diagShow){window.__diagShow("ブラウザ: "+navigator.userAgent);window.__diagShow("版 tv8 / 本体の動作: 止まっている")}</script>
-<script>(function(){var V="202611062206";function chk(){try{var x=new XMLHttpRequest();x.open("GET",location.pathname+"?t="+new Date().getTime(),true);x.onload=function(){var m=/var V="(\d+)"/.exec(x.responseText);if(x.status===200&&m&&m[1]!==V){location.replace(location.pathname+"?v="+m[1])}};x.send()}catch(e){}}chk();setInterval(chk,1800000)})();</script>
+<script>(function(){var V="202611062209";function chk(){try{var x=new XMLHttpRequest();x.open("GET",location.pathname+"?t="+new Date().getTime(),true);x.onload=function(){var m=/var V="(\d+)"/.exec(x.responseText);if(x.status===200&&m&&m[1]!==V){location.replace(location.pathname+"?v="+m[1])}};x.send()}catch(e){}}chk();setInterval(chk,1800000)})();</script>
 </body>
 </html>
