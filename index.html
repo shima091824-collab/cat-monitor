@@ -72,8 +72,8 @@
   #ackBtn{font-size:3vh;font-weight:700;padding:1.2vh 1vw;border-radius:1vh;border:0;background:#fff;color:#8b1d12}
   #ackBtn:focus{outline:5px solid #ffd54a}
   #alarmInfo{display:none;font-size:2.4vh;font-weight:700;color:#ffb3a8;line-height:1.4}
-  .catdot.alarm-dot{box-shadow:0 0 0 6px rgba(192,57,43,.55),0 0 0 13px rgba(192,57,43,.25)}
-  .catdot{box-sizing:border-box;width:18px;height:18px;border-radius:50%;background:#ff5a36;border:3px solid #fff;box-shadow:0 0 0 4px rgba(255,90,54,.35)}   /* 11/12 小さく（オーナー指示・直径34px→18px） */
+  .catdot.alarm-dot{box-shadow:0 0 0 5px rgba(192,57,43,.55),0 0 0 11px rgba(192,57,43,.25)}
+  .catdot{box-sizing:border-box;width:12px;height:12px;border-radius:50%;background:#ff5a36;border:2px solid #fff;box-shadow:0 0 0 3px rgba(255,90,54,.35)}   /* 11/12 小さく（オーナー指示・直径34px→18px→12px） */
   /* 10/30 スマホ（縦長・狭い画面）：リモコン用の大ボタンは隠して指で操作（ピンチで拡大）。文字は画面の高さ基準だと大きすぎるので px で決め、下へスクロールできるようにする */
   @media (max-width:800px){
     html,body{height:auto}
@@ -200,7 +200,7 @@ const BASE={map:L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
 let baseKey='map'; try{ if(localStorage.getItem('catmon.base')==='photo') baseKey='photo' }catch(e){}
 function setBase(k){ BASE[baseKey].remove(); baseKey=k; BASE[k].addTo(map); const b=document.getElementById('basemap'); if(b) b.textContent=k==='photo'?'地図':'航空写真'; try{localStorage.setItem('catmon.base',k)}catch(e){} }
 BASE[baseKey].addTo(map);
-const marker=L.marker([0,0],{icon:L.divIcon({className:'',html:'<div class="catdot"></div>',iconSize:[18,18],iconAnchor:[9,9]})});
+const marker=L.marker([0,0],{icon:L.divIcon({className:'',html:'<div class="catdot"></div>',iconSize:[12,12],iconAnchor:[6,6]})});
 const trailLayer=L.layerGroup().addTo(map);
 // 家（その日いちばん長くいた場所）から HOME_M 以内は線を引かず、薄い円だけ描く（屋内の GPS のばらつきでトゲトゲになるため）
 // 10/27 オーナー指摘「見栄えがよくない」→ ①円に出入りする線は円の縁で切る（円の中に線の切れ端を残さない）

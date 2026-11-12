@@ -73,8 +73,8 @@
   #ackBtn{font-size:3vh;font-weight:700;padding:1.2vh 1vw;border-radius:1vh;border:0;background:#fff;color:#8b1d12}
   #ackBtn:focus{outline:5px solid #ffd54a}
   #alarmInfo{display:none;font-size:2.4vh;font-weight:700;color:#ffb3a8;line-height:1.4}
-  .catdot.alarm-dot{box-shadow:0 0 0 6px rgba(192,57,43,.55),0 0 0 13px rgba(192,57,43,.25)}
-  .catdot{box-sizing:border-box;width:18px;height:18px;border-radius:50%;background:#ff5a36;border:3px solid #fff;box-shadow:0 0 0 4px rgba(255,90,54,.35)}   /* 11/12 小さく（オーナー指示・直径34px→18px） */
+  .catdot.alarm-dot{box-shadow:0 0 0 5px rgba(192,57,43,.55),0 0 0 11px rgba(192,57,43,.25)}
+  .catdot{box-sizing:border-box;width:12px;height:12px;border-radius:50%;background:#ff5a36;border:2px solid #fff;box-shadow:0 0 0 3px rgba(255,90,54,.35)}   /* 11/12 小さく（オーナー指示・直径34px→18px→12px） */
   /* 10/30 スマホ（縦長・狭い画面）：リモコン用の大ボタンは隠して指で操作（ピンチで拡大）。文字は画面の高さ基準だと大きすぎるので px で決め、下へスクロールできるようにする */
   @media (max-width:800px){
     html,body{height:auto}
@@ -466,8 +466,8 @@ var marker = L.marker([0, 0], {
   icon: L.divIcon({
     className: '',
     html: '<div class="catdot"></div>',
-    iconSize: [18, 18],
-    iconAnchor: [9, 9]
+    iconSize: [12, 12],
+    iconAnchor: [6, 6]
   })
 });
 var trailLayer = L.layerGroup().addTo(map);
@@ -1233,6 +1233,6 @@ window.__ok=1;
 </script>
 <div id="diag" style="display:none;position:fixed;left:0;right:0;bottom:0;z-index:20000;background:#000;color:#0f0;font:2.4vh monospace;padding:1vh;word-break:break-all"></div>
 <script>if(!window.__ok&&window.__diagShow){window.__diagShow("ブラウザ: "+navigator.userAgent);window.__diagShow("版 tv8 / 本体の動作: 止まっている")}</script>
-<script>(function(){var V="202611120234";function chk(){try{var x=new XMLHttpRequest();x.open("GET",location.pathname+"?t="+new Date().getTime(),true);x.onload=function(){var m=/var V="(\d+)"/.exec(x.responseText);if(x.status===200&&m&&m[1]!==V){location.replace(location.pathname+"?v="+m[1])}};x.send()}catch(e){}}chk();setInterval(chk,1800000)})();</script>
+<script>(function(){var V="202611120236";function chk(){try{var x=new XMLHttpRequest();x.open("GET",location.pathname+"?t="+new Date().getTime(),true);x.onload=function(){var m=/var V="(\d+)"/.exec(x.responseText);if(x.status===200&&m&&m[1]!==V){location.replace(location.pathname+"?v="+m[1])}};x.send()}catch(e){}}chk();setInterval(chk,1800000)})();</script>
 </body>
 </html>
