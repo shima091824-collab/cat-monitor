@@ -468,13 +468,14 @@ var gkey = function gkey() {
 var gLayer = null,
   gAttr = '',
   gTimer = 0,
-  baseSeq = 0;
+  baseSeq = 0,
+  gErr = ''; // gErr：Google が断った理由（テレビで原因を見るため画面に出す）
 function gSession() {
   return _gSession.apply(this, arguments);
 }
 function _gSession() {
   _gSession = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee6() {
-    var c, r, j, _t3;
+    var c, r, _m, j, _t3, _t4, _t5;
     return _regenerator().w(function (_context6) {
       while (1) switch (_context6.p = _context6.n) {
         case 0:
@@ -507,14 +508,33 @@ function _gSession() {
         case 4:
           r = _context6.v;
           if (r.ok) {
-            _context6.n = 5;
+            _context6.n = 10;
             break;
           }
-          throw new Error('createSession ' + r.status);
-        case 5:
+          _m = '';
+          _context6.p = 5;
           _context6.n = 6;
           return r.json();
         case 6:
+          _t4 = _context6.v.error.status;
+          if (_t4) {
+            _context6.n = 7;
+            break;
+          }
+          _t4 = '';
+        case 7:
+          _m = _t4;
+          _context6.n = 9;
+          break;
+        case 8:
+          _context6.p = 8;
+          _t5 = _context6.v;
+        case 9:
+          throw new Error(r.status + (_m ? ' ' + _m : ''));
+        case 10:
+          _context6.n = 11;
+          return r.json();
+        case 11:
           j = _context6.v;
           try {
             localStorage.setItem(GSES, JSON.stringify({
@@ -525,7 +545,7 @@ function _gSession() {
           } catch (e) {}
           return _context6.a(2, j.session);
       }
-    }, _callee6, null, [[0, 2]]);
+    }, _callee6, null, [[5, 8], [0, 2]]);
   }));
   return _gSession.apply(this, arguments);
 }
@@ -584,7 +604,7 @@ function setBase(_x3) {
 }
 function _setBase() {
   _setBase = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee7(k) {
-    var my, b, lay, ses, _t4;
+    var my, b, lay, ses, _t6;
     return _regenerator().w(function (_context7) {
       while (1) switch (_context7.p = _context7.n) {
         case 0:
@@ -604,7 +624,7 @@ function _setBase() {
           } catch (e) {}
           lay = BASE[k];
           if (!(k === 'photo' && gkey())) {
-            _context7.n = 5;
+            _context7.n = 6;
             break;
           }
           _context7.p = 1;
@@ -627,22 +647,26 @@ function _setBase() {
             gLayer._ses = ses;
           }
           lay = gLayer;
+          gErr = '';
           _context7.n = 5;
           break;
         case 4:
           _context7.p = 4;
-          _t4 = _context7.v;
-          console.log('Google の航空写真が使えないので国土地理院の写真にします', _t4);
+          _t6 = _context7.v;
+          gErr = String(_t6 && _t6.message || _t6);
+          console.log('Google の航空写真が使えないので国土地理院の写真にします', _t6);
         case 5:
+          gkeyLabel();
+        case 6:
           if (!(my !== baseSeq)) {
-            _context7.n = 6;
+            _context7.n = 7;
             break;
           }
           return _context7.a(2);
-        case 6:
+        case 7:
           lay.addTo(map);
           if (lay === gLayer) gCopy();
-        case 7:
+        case 8:
           return _context7.a(2);
       }
     }, _callee7, null, [[1, 4]]);
@@ -1090,7 +1114,7 @@ function goDay(_x5) {
 } // 地図の移動（画面の 1/3 ずつ）と拡大縮小、猫の位置へ戻る
 function _goDay() {
   _goDay = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee9(delta) {
-    var today, d, _t5;
+    var today, d, _t7;
     return _regenerator().w(function (_context9) {
       while (1) switch (_context9.p = _context9.n) {
         case 0:
@@ -1124,9 +1148,9 @@ function _goDay() {
           break;
         case 6:
           _context9.p = 6;
-          _t5 = _context9.v;
+          _t7 = _context9.v;
           $('dayLabel').textContent = '読み込みに失敗しました';
-          if (window.__diagShow) window.__diagShow('goDay: ' + _t5.message);
+          if (window.__diagShow) window.__diagShow('goDay: ' + _t7.message);
         case 7:
           return _context9.a(2);
       }
@@ -1160,9 +1184,13 @@ $('basemap').textContent = baseKey === 'photo' ? '地図' : '航空写真';
 $('basemap').onclick = function () {
   return setBase(baseKey === 'photo' ? 'map' : 'photo');
 };
-var gkeyLabel = function gkeyLabel() {
-  $('gkeyBtn').textContent = gkey() ? 'Googleキー（入力済み）' : 'Googleキー';
-};
+function gkeyLabel() {
+  var b = document.getElementById('gkeyBtn');
+  if (!b) return;
+  var k = gkey();
+  // 11/12 テレビで手入力したキーの確かめ用：文字数と最後の4文字、Google に断られた時はその理由を出す
+  b.textContent = !k ? 'Googleキー' : gErr ? 'Googleキー：使えません（' + gErr + '・' + k.length + '文字・末尾 ' + k.slice(-4) + '）' : 'Googleキー（入力済み・' + k.length + '文字・末尾 ' + k.slice(-4) + '）';
+}
 gkeyLabel();
 $('gkeyBtn').onclick = function () {
   var v = prompt('Google の APIキーを貼り付けてください。\nこの端末の中にだけ保存されます。空にして OK を押すと消します。', '');
@@ -1172,6 +1200,7 @@ $('gkeyBtn').onclick = function () {
     localStorage.removeItem(GSES);
   } catch (e) {}
   gLayer = null;
+  gErr = '';
   gkeyLabel();
   if (baseKey === 'photo') setBase('photo');
 };
@@ -1206,7 +1235,7 @@ function get(_x6) {
 } // 10/31 テレビ（Firefox 34）は toLocaleTimeString の指定を無視して秒まで出した［オーナー報告］→ 日本時間の HH:MM を自前で作る
 function _get() {
   _get = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee0(path) {
-    var r, _t6;
+    var r, _t8;
     return _regenerator().w(function (_context0) {
       while (1) switch (_context0.n) {
         case 0:
@@ -1233,14 +1262,14 @@ function _get() {
           _context0.n = 4;
           return r.json();
         case 4:
-          _t6 = _context0.v.result;
-          if (_t6) {
+          _t8 = _context0.v.result;
+          if (_t8) {
             _context0.n = 5;
             break;
           }
-          _t6 = [];
+          _t8 = [];
         case 5:
-          return _context0.a(2, _t6);
+          return _context0.a(2, _t8);
       }
     }, _callee0);
   }));
@@ -1335,7 +1364,7 @@ function tick(_x7) {
 } // 10/27 「電池の残り」行は削除（オーナー：休んでいる間は減り方が変わり当てにならない）
 function _tick() {
   _tick = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee1(force) {
-    var t, tel, v, lat, lon, b, chg, full, chgTs, f, ev, day0, msgs, _i12, x, _t7;
+    var t, tel, v, lat, lon, b, chg, full, chgTs, f, ev, day0, msgs, _i12, x, _t9;
     return _regenerator().w(function (_context1) {
       while (1) switch (_context1.p = _context1.n) {
         case 0:
@@ -1434,15 +1463,15 @@ function _tick() {
           break;
         case 6:
           _context1.p = 6;
-          _t7 = _context1.v;
-          if (_t7.message === 'auth') {
+          _t9 = _context1.v;
+          if (_t9.message === 'auth') {
             $('status').className = 'bad';
             $('status').textContent = 'トークンが使えません';
             showSetup();
           } else {
             $('status').className = 'bad';
             $('status').textContent = '通信エラー（再試行中）';
-            if (window.__diagShow) window.__diagShow('tick: ' + _t7.message);
+            if (window.__diagShow) window.__diagShow('tick: ' + _t9.message);
           } // テレビ用の診断表示（tv.html のみ）
         case 7:
           return _context1.a(2);
@@ -1458,6 +1487,6 @@ window.__ok=1;
 </script>
 <div id="diag" style="display:none;position:fixed;left:0;right:0;bottom:0;z-index:20000;background:#000;color:#0f0;font:2.4vh monospace;padding:1vh;word-break:break-all"></div>
 <script>if(!window.__ok&&window.__diagShow){window.__diagShow("ブラウザ: "+navigator.userAgent);window.__diagShow("版 tv8 / 本体の動作: 止まっている")}</script>
-<script>(function(){var V="202611121246";function chk(){try{var x=new XMLHttpRequest();x.open("GET",location.pathname+"?t="+new Date().getTime(),true);x.onload=function(){var m=/var V="(\d+)"/.exec(x.responseText);if(x.status===200&&m&&m[1]!==V){location.replace(location.pathname+"?v="+m[1])}};x.send()}catch(e){}}chk();setInterval(chk,1800000)})();</script>
+<script>(function(){var V="202611121310";function chk(){try{var x=new XMLHttpRequest();x.open("GET",location.pathname+"?t="+new Date().getTime(),true);x.onload=function(){var m=/var V="(\d+)"/.exec(x.responseText);if(x.status===200&&m&&m[1]!==V){location.replace(location.pathname+"?v="+m[1])}};x.send()}catch(e){}}chk();setInterval(chk,1800000)})();</script>
 </body>
 </html>

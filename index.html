@@ -203,11 +203,11 @@ let baseKey='map'; try{ if(localStorage.getItem('catmon.base')==='photo') baseKe
 // 航空写真を選んだ時だけ Google につなぐ（ふつうの地図では一切つながない）。キーが無い・失敗した時は国土地理院の写真
 const GKEY='catmon.gkey', GSES='catmon.gses';
 const gkey=()=>{ try{ return localStorage.getItem(GKEY)||'' }catch(e){ return '' } };
-let gLayer=null, gAttr='', gTimer=0, baseSeq=0;
+let gLayer=null, gAttr='', gTimer=0, baseSeq=0, gErr='';   // gErr：Google が断った理由（テレビで原因を見るため画面に出す）
 async function gSession(){
   try{ const c=JSON.parse(localStorage.getItem(GSES)||'null'); if(c&&c.k===gkey().slice(-6)&&(+c.expiry)-3600>Date.now()/1000) return c.session }catch(e){}
   const r=await fetch('https://tile.googleapis.com/v1/createSession?key='+encodeURIComponent(gkey()),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mapType:'satellite',language:'ja-JP',region:'JP'})});
-  if(!r.ok) throw new Error('createSession '+r.status);
+  if(!r.ok){ let m=''; try{ m=(await r.json()).error.status||'' }catch(e){} throw new Error(r.status+(m?' '+m:'')) }
   const j=await r.json(); try{ localStorage.setItem(GSES,JSON.stringify({k:gkey().slice(-6),session:j.session,expiry:j.expiry})) }catch(e){}
   return j.session;
 }
@@ -223,7 +223,7 @@ async function setBase(k){
   let lay=BASE[k];
   if(k==='photo'&&gkey()){ try{ const ses=await gSession(); if(my!==baseSeq) return;
       if(!gLayer||gLayer._ses!==ses){ gLayer=L.tileLayer('https://tile.googleapis.com/v1/2dtiles/{z}/{x}/{y}?session='+ses+'&key='+encodeURIComponent(gkey()),{maxZoom:21,maxNativeZoom:20,attribution:''}); gLayer._ses=ses }
-      lay=gLayer }catch(e){ console.log('Google の航空写真が使えないので国土地理院の写真にします',e) } }
+      lay=gLayer; gErr='' }catch(e){ gErr=String(e&&e.message||e); console.log('Google の航空写真が使えないので国土地理院の写真にします',e) } gkeyLabel() }
   if(my!==baseSeq) return; lay.addTo(map); if(lay===gLayer) gCopy();
 }
 map.on('moveend',()=>{ if(gLayer&&map.hasLayer(gLayer)) gCopy() });
@@ -369,10 +369,13 @@ const panBy=(fx,fy)=>{const z=map.getSize(); map.panBy([z.x*fx/3,z.y*fy/3])};
 $('up').onclick=()=>panBy(0,-1); $('down').onclick=()=>panBy(0,1); $('left').onclick=()=>panBy(-1,0); $('right').onclick=()=>panBy(1,0);
 $('zin').onclick=()=>map.zoomIn(); $('zout').onclick=()=>map.zoomOut();
 $('basemap').textContent=baseKey==='photo'?'地図':'航空写真'; $('basemap').onclick=()=>setBase(baseKey==='photo'?'map':'photo');
-const gkeyLabel=()=>{ $('gkeyBtn').textContent=gkey()?'Googleキー（入力済み）':'Googleキー' }; gkeyLabel();
+function gkeyLabel(){ const b=document.getElementById('gkeyBtn'); if(!b) return; const k=gkey();
+  // 11/12 テレビで手入力したキーの確かめ用：文字数と最後の4文字、Google に断られた時はその理由を出す
+  b.textContent=!k?'Googleキー':gErr?'Googleキー：使えません（'+gErr+'・'+k.length+'文字・末尾 '+k.slice(-4)+'）':'Googleキー（入力済み・'+k.length+'文字・末尾 '+k.slice(-4)+'）' }
+gkeyLabel();
 $('gkeyBtn').onclick=()=>{ const v=prompt('Google の APIキーを貼り付けてください。\nこの端末の中にだけ保存されます。空にして OK を押すと消します。',''); if(v===null) return;
   try{ if(v.trim()) localStorage.setItem(GKEY,v.trim()); else localStorage.removeItem(GKEY); localStorage.removeItem(GSES) }catch(e){}
-  gLayer=null; gkeyLabel(); if(baseKey==='photo') setBase('photo') };
+  gLayer=null; gErr=''; gkeyLabel(); if(baseKey==='photo') setBase('photo') };
 $('center').onclick=()=>{ if(map.hasLayer(marker)) map.setView(marker.getLatLng(),Math.max(map.getZoom(),16)) };
 $('prev').onclick=()=>goDay(-1); $('next').onclick=()=>goDay(1); $('today').onclick=()=>goDay(0);
 document.addEventListener('keydown',e=>{ if($('setup').style.display==='flex') return; if(e.key==='ArrowLeft'&&document.activeElement.tagName!=='BUTTON'){goDay(-1)} if(e.key==='ArrowRight'&&document.activeElement.tagName!=='BUTTON'){goDay(1)} });
