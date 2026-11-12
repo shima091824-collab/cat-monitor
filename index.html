@@ -30,6 +30,9 @@
   #zoom{position:absolute;right:1.4vw;bottom:3vh;z-index:1000;display:flex;flex-direction:column;gap:.8vh}
   #pad button,#zoom button{width:7vh;height:7vh;font-size:3.6vh;border-radius:1.2vh;border:0;background:rgba(20,20,20,.82);color:#fff;padding:0}
   #pad button:focus,#zoom button:focus{outline:4px solid #ffd54a}
+  /* 11/12 地図／航空写真の切り替え（オーナー指示） */
+  #basemap{position:absolute;right:1.4vw;top:2vh;z-index:1000;height:6vh;padding:0 1.6vh;font-size:2.6vh;font-weight:bold;border-radius:1.2vh;border:0;background:rgba(20,20,20,.82);color:#fff}
+  #basemap:focus{outline:4px solid #ffd54a}
   .tlabel{background:rgba(20,20,20,.85);color:#fff;border:0;border-radius:6px;font-size:1.7vh;font-weight:700;padding:2px 6px;box-shadow:none}
   .tlabel:before{display:none}
   .rlabel{position:absolute;transform:translate(-50%,-135%);white-space:nowrap;background:#fff;color:#2f6fd6;border:2px solid #6fa8ff;border-radius:999px;font-size:1.5vh;font-weight:700;padding:1px 8px}
@@ -77,6 +80,7 @@
     #app{flex-direction:column;height:auto}
     #mapwrap{flex:none;height:52vh}
     #pad,#zoom{display:none}
+    #basemap{height:36px;padding:0 12px;font-size:15px;top:10px;right:10px}
     #side{width:100%;min-width:0;padding:12px 16px 24px;gap:8px}
     .title{font-size:14px}
     #status{font-size:20px;padding:10px 12px;border-radius:12px}
@@ -108,6 +112,7 @@
       <span></span><button id="down" title="下へ">▼</button><span></span>
     </div>
     <div id="zoom"><button id="zin" title="拡大">＋</button><button id="zout" title="縮小">－</button></div>
+    <button id="basemap" title="地図と航空写真を切り替え">航空写真</button>
   </div>
   <div id="side">
     <div class="title">ねこモニター（MT710）</div>
@@ -189,7 +194,12 @@ try{ localStorage.removeItem('catmon.home') }catch(e){}
 $('sampleSiren').innerHTML=$('siren').outerHTML.replace('id="siren"','');   // 見本用に回転灯の図を複製   // 手入力していた頃の値を消す
 
 const map=L.map('map',{zoomControl:false,attributionControl:true}).setView([35.68,139.76],5);
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; OpenStreetMap contributors'}).addTo(map);
+// 11/12 地図／航空写真（国土地理院 全国最新写真・z18 まで。それより拡大は引き伸ばし）を切り替え。選んだほうを覚える
+const BASE={map:L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; OpenStreetMap contributors'}),
+  photo:L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/seamlessphoto/{z}/{x}/{y}.jpg',{maxZoom:19,maxNativeZoom:18,attribution:'<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank">地理院タイル</a>'})};
+let baseKey='map'; try{ if(localStorage.getItem('catmon.base')==='photo') baseKey='photo' }catch(e){}
+function setBase(k){ BASE[baseKey].remove(); baseKey=k; BASE[k].addTo(map); const b=document.getElementById('basemap'); if(b) b.textContent=k==='photo'?'地図':'航空写真'; try{localStorage.setItem('catmon.base',k)}catch(e){} }
+BASE[baseKey].addTo(map);
 const marker=L.marker([0,0],{icon:L.divIcon({className:'',html:'<div class="catdot"></div>',iconSize:[26,26],iconAnchor:[13,13]})});
 const trailLayer=L.layerGroup().addTo(map);
 // 家（その日いちばん長くいた場所）から HOME_M 以内は線を引かず、薄い円だけ描く（屋内の GPS のばらつきでトゲトゲになるため）
@@ -325,6 +335,7 @@ async function goDay(delta){
 const panBy=(fx,fy)=>{const z=map.getSize(); map.panBy([z.x*fx/3,z.y*fy/3])};
 $('up').onclick=()=>panBy(0,-1); $('down').onclick=()=>panBy(0,1); $('left').onclick=()=>panBy(-1,0); $('right').onclick=()=>panBy(1,0);
 $('zin').onclick=()=>map.zoomIn(); $('zout').onclick=()=>map.zoomOut();
+$('basemap').textContent=baseKey==='photo'?'地図':'航空写真'; $('basemap').onclick=()=>setBase(baseKey==='photo'?'map':'photo');
 $('center').onclick=()=>{ if(map.hasLayer(marker)) map.setView(marker.getLatLng(),Math.max(map.getZoom(),16)) };
 $('prev').onclick=()=>goDay(-1); $('next').onclick=()=>goDay(1); $('today').onclick=()=>goDay(0);
 document.addEventListener('keydown',e=>{ if($('setup').style.display==='flex') return; if(e.key==='ArrowLeft'&&document.activeElement.tagName!=='BUTTON'){goDay(-1)} if(e.key==='ArrowRight'&&document.activeElement.tagName!=='BUTTON'){goDay(1)} });
