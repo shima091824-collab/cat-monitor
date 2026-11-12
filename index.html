@@ -129,7 +129,7 @@
     <div class="note" id="help">線＝その日の動き（<span style="color:#ffb88c">■</span>早い→<span style="color:#8c140a">■</span>遅い時刻）。<span style="color:#7fb3ff">◯</span>＝家（中は線なし）。時刻は家の外の動き、拡大で増えます。0時に消えます（flespi に約1年残る）。</div>
     <div class="note" id="rule" style="color:#ffb3a8;border:1px solid #6d3a33;border-radius:1vh;padding:.6vh 1vw"><b>アラートのタイミング</b>：家（中心から30m）の外で、40分以上 受信なし（動きなし）のとき。<div id="sample"><span id="sampleSiren"></span><span class="sband">異常：家の外で◯分 動きなし</span><span class="slabel">←この表示</span></div></div>
     <div class="note" id="homeWarn" style="display:none;color:#ffd54a">家の位置を計算中のため、異常の判定はまだ止まっています。</div>
-    <div style="display:flex;gap:1vw;margin-top:auto"><button id="reset">トークンを入れ直す</button></div>
+    <div style="display:flex;gap:1vw;margin-top:auto"><button id="reset">トークンを入れ直す</button><button id="gkeyBtn" class="resetlike">Googleキー</button></div>
   </div>
 </div>
 <div id="setup">
@@ -199,8 +199,35 @@ const map=L.map('map',{zoomControl:false,attributionControl:true}).setView([35.6
 const BASE={map:L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; OpenStreetMap contributors'}),
   photo:L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/seamlessphoto/{z}/{x}/{y}.jpg',{maxZoom:19,maxNativeZoom:18,attribution:'<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank">地理院タイル</a>'})};
 let baseKey='map'; try{ if(localStorage.getItem('catmon.base')==='photo') baseKey='photo' }catch(e){}
-function setBase(k){ BASE[baseKey].remove(); baseKey=k; BASE[k].addTo(map); const b=document.getElementById('basemap'); if(b) b.textContent=k==='photo'?'地図':'航空写真'; try{localStorage.setItem('catmon.base',k)}catch(e){} }
-BASE[baseKey].addTo(map);
+// 11/12 Google の航空写真（Map Tiles API・オーナー指示）。キーはこの端末の中にだけ保存し、ページには書かない。
+// 航空写真を選んだ時だけ Google につなぐ（ふつうの地図では一切つながない）。キーが無い・失敗した時は国土地理院の写真
+const GKEY='catmon.gkey', GSES='catmon.gses';
+const gkey=()=>{ try{ return localStorage.getItem(GKEY)||'' }catch(e){ return '' } };
+let gLayer=null, gAttr='', gTimer=0, baseSeq=0;
+async function gSession(){
+  try{ const c=JSON.parse(localStorage.getItem(GSES)||'null'); if(c&&c.k===gkey().slice(-6)&&(+c.expiry)-3600>Date.now()/1000) return c.session }catch(e){}
+  const r=await fetch('https://tile.googleapis.com/v1/createSession?key='+encodeURIComponent(gkey()),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mapType:'satellite',language:'ja-JP',region:'JP'})});
+  if(!r.ok) throw new Error('createSession '+r.status);
+  const j=await r.json(); try{ localStorage.setItem(GSES,JSON.stringify({k:gkey().slice(-6),session:j.session,expiry:j.expiry})) }catch(e){}
+  return j.session;
+}
+const escTxt=t=>String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function gCopy(){ clearTimeout(gTimer); gTimer=setTimeout(async()=>{   // 出所（Google の決まり：表示中の範囲の著作権表示をそのまま出す）
+  if(!gLayer||!map.hasLayer(gLayer)) return; const b=map.getBounds();
+  try{ const r=await fetch('https://tile.googleapis.com/tile/v1/viewport?session='+gLayer._ses+'&key='+encodeURIComponent(gkey())+'&zoom='+map.getZoom()+'&north='+b.getNorth()+'&south='+b.getSouth()+'&east='+b.getEast()+'&west='+b.getWest());
+    const j=await r.json(), t='<b>Google Maps</b>'+(j.copyright?' | '+escTxt(j.copyright):'');
+    if(t!==gAttr&&map.hasLayer(gLayer)){ if(gAttr) map.attributionControl.removeAttribution(gAttr); gAttr=t; map.attributionControl.addAttribution(gAttr) } }catch(e){} },1500) }
+async function setBase(k){
+  const my=++baseSeq; BASE.map.remove(); BASE.photo.remove(); if(gLayer) gLayer.remove(); if(gAttr){ map.attributionControl.removeAttribution(gAttr); gAttr='' }
+  baseKey=k; const b=document.getElementById('basemap'); if(b) b.textContent=k==='photo'?'地図':'航空写真'; try{localStorage.setItem('catmon.base',k)}catch(e){}
+  let lay=BASE[k];
+  if(k==='photo'&&gkey()){ try{ const ses=await gSession(); if(my!==baseSeq) return;
+      if(!gLayer||gLayer._ses!==ses){ gLayer=L.tileLayer('https://tile.googleapis.com/v1/2dtiles/{z}/{x}/{y}?session='+ses+'&key='+encodeURIComponent(gkey()),{maxZoom:21,maxNativeZoom:20,attribution:''}); gLayer._ses=ses }
+      lay=gLayer }catch(e){ console.log('Google の航空写真が使えないので国土地理院の写真にします',e) } }
+  if(my!==baseSeq) return; lay.addTo(map); if(lay===gLayer) gCopy();
+}
+map.on('moveend',()=>{ if(gLayer&&map.hasLayer(gLayer)) gCopy() });
+setBase(baseKey);
 const marker=L.marker([0,0],{icon:L.divIcon({className:'',html:'<div class="catdot"></div>',iconSize:[24,24],iconAnchor:[12,12]})});
 const trailLayer=L.layerGroup().addTo(map);
 // 家（その日いちばん長くいた場所）から HOME_M 以内は線を引かず、薄い円だけ描く（屋内の GPS のばらつきでトゲトゲになるため）
@@ -342,6 +369,10 @@ const panBy=(fx,fy)=>{const z=map.getSize(); map.panBy([z.x*fx/3,z.y*fy/3])};
 $('up').onclick=()=>panBy(0,-1); $('down').onclick=()=>panBy(0,1); $('left').onclick=()=>panBy(-1,0); $('right').onclick=()=>panBy(1,0);
 $('zin').onclick=()=>map.zoomIn(); $('zout').onclick=()=>map.zoomOut();
 $('basemap').textContent=baseKey==='photo'?'地図':'航空写真'; $('basemap').onclick=()=>setBase(baseKey==='photo'?'map':'photo');
+const gkeyLabel=()=>{ $('gkeyBtn').textContent=gkey()?'Googleキー（入力済み）':'Googleキー' }; gkeyLabel();
+$('gkeyBtn').onclick=()=>{ const v=prompt('Google の APIキーを貼り付けてください。\nこの端末の中にだけ保存されます。空にして OK を押すと消します。',''); if(v===null) return;
+  try{ if(v.trim()) localStorage.setItem(GKEY,v.trim()); else localStorage.removeItem(GKEY); localStorage.removeItem(GSES) }catch(e){}
+  gLayer=null; gkeyLabel(); if(baseKey==='photo') setBase('photo') };
 $('center').onclick=()=>{ if(map.hasLayer(marker)) map.setView(marker.getLatLng(),Math.max(map.getZoom(),16)) };
 $('prev').onclick=()=>goDay(-1); $('next').onclick=()=>goDay(1); $('today').onclick=()=>goDay(0);
 document.addEventListener('keydown',e=>{ if($('setup').style.display==='flex') return; if(e.key==='ArrowLeft'&&document.activeElement.tagName!=='BUTTON'){goDay(-1)} if(e.key==='ArrowRight'&&document.activeElement.tagName!=='BUTTON'){goDay(1)} });

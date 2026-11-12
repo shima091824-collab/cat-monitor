@@ -144,7 +144,7 @@
     <div class="note" id="help">線＝その日の動き（<span style="color:#ffb88c">■</span>早い→<span style="color:#8c140a">■</span>遅い時刻）。<span style="color:#7fb3ff">◯</span>＝家（中は線なし）。時刻は家の外の動き、拡大で増えます。0時に消えます（flespi に約1年残る）。</div>
     <div class="note" id="rule" style="color:#ffb3a8;border:1px solid #6d3a33;border-radius:1vh;padding:.6vh 1vw"><b>アラートのタイミング</b>：家（中心から30m）の外で、40分以上 受信なし（動きなし）のとき。<div id="sample"><span id="sampleSiren"></span><span class="sband">異常：家の外で◯分 動きなし</span><span class="slabel">←この表示</span></div></div>
     <div class="note" id="homeWarn" style="display:none;color:#ffd54a">家の位置を計算中のため、異常の判定はまだ止まっています。</div>
-    <div style="display:flex;gap:1vw;margin-top:auto"><button id="reset">トークンを入れ直す</button></div>
+    <div style="display:flex;gap:1vw;margin-top:auto"><button id="reset">トークンを入れ直す</button><button id="gkeyBtn" class="resetlike">Googleキー</button></div>
   </div>
 </div>
 <div id="setup">
@@ -212,27 +212,27 @@ function tokOk(_x) {
   return _tokOk.apply(this, arguments);
 }
 function _tokOk() {
-  _tokOk = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee2(t) {
-    var r, _t;
-    return _regenerator().w(function (_context2) {
-      while (1) switch (_context2.p = _context2.n) {
+  _tokOk = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee3(t) {
+    var r, _t2;
+    return _regenerator().w(function (_context3) {
+      while (1) switch (_context3.p = _context3.n) {
         case 0:
-          _context2.p = 0;
-          _context2.n = 1;
+          _context3.p = 0;
+          _context3.n = 1;
           return fetch(API + '/telemetry/battery.level', {
             headers: {
               Authorization: 'FlespiToken ' + t
             }
           });
         case 1:
-          r = _context2.v;
-          return _context2.a(2, r.ok);
+          r = _context3.v;
+          return _context3.a(2, r.ok);
         case 2:
-          _context2.p = 2;
-          _t = _context2.v;
-          return _context2.a(2, false);
+          _context3.p = 2;
+          _t2 = _context3.v;
+          return _context3.a(2, false);
       }
-    }, _callee2, null, [[0, 2]]);
+    }, _callee3, null, [[0, 2]]);
   }));
   return _tokOk.apply(this, arguments);
 }
@@ -240,10 +240,10 @@ function findTok(_x2) {
   return _findTok.apply(this, arguments);
 }
 function _findTok() {
-  _findTok = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee3(v) {
+  _findTok = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee4(v) {
     var G, pos, i, cands, _i7, _i8, next, _i0, _cands2, c, _i10, _G$v$_i2, ch, k;
-    return _regenerator().w(function (_context3) {
-      while (1) switch (_context3.n) {
+    return _regenerator().w(function (_context4) {
+      while (1) switch (_context4.n) {
         case 0:
           G = {
             l: 'lI1',
@@ -257,7 +257,7 @@ function _findTok() {
           _i7 = 0;
         case 1:
           if (!(_i7 < pos.length)) {
-            _context3.n = 4;
+            _context4.n = 4;
             break;
           }
           _i8 = pos[_i7];
@@ -270,40 +270,40 @@ function _findTok() {
             }
           }
           if (!(next.length > 64)) {
-            _context3.n = 2;
+            _context4.n = 2;
             break;
           }
-          return _context3.a(3, 4);
+          return _context4.a(3, 4);
         case 2:
           cands = next;
         case 3:
           _i7++;
-          _context3.n = 1;
+          _context4.n = 1;
           break;
         case 4:
           k = 0;
         case 5:
           if (!(k < cands.length)) {
-            _context3.n = 8;
+            _context4.n = 8;
             break;
           }
           $('tokMsg').textContent = 'flespi に確認中… ' + (k + 1) + ' / ' + cands.length;
-          _context3.n = 6;
+          _context4.n = 6;
           return tokOk(cands[k]);
         case 6:
-          if (!_context3.v) {
-            _context3.n = 7;
+          if (!_context4.v) {
+            _context4.n = 7;
             break;
           }
-          return _context3.a(2, cands[k]);
+          return _context4.a(2, cands[k]);
         case 7:
           k++;
-          _context3.n = 5;
+          _context4.n = 5;
           break;
         case 8:
-          return _context3.a(2, null);
+          return _context4.a(2, null);
       }
-    }, _callee3);
+    }, _callee4);
   }));
   return _findTok.apply(this, arguments);
 }
@@ -368,27 +368,27 @@ function updateHome() {
   return _updateHome.apply(this, arguments);
 }
 function _updateHome() {
-  _updateHome = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee4() {
+  _updateHome = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee5() {
     var to, r, ok, rest, last, i, med, h;
-    return _regenerator().w(function (_context4) {
-      while (1) switch (_context4.n) {
+    return _regenerator().w(function (_context5) {
+      while (1) switch (_context5.n) {
         case 0:
           if (!(Date.now() - homeAt < 3600000 && HOME)) {
-            _context4.n = 1;
+            _context5.n = 1;
             break;
           }
-          return _context4.a(2);
+          return _context5.a(2);
         case 1:
           homeAt = Date.now();
           to = Math.floor(Date.now() / 1000);
-          _context4.n = 2;
+          _context5.n = 2;
           return get('/messages?data=' + encodeURIComponent(JSON.stringify({
             from: to - 7 * 86400,
             to: to,
             fields: 'timestamp,position.latitude,position.longitude,position.valid'
           })));
         case 2:
-          r = _context4.v;
+          r = _context5.v;
           ok = function ok(x) {
             return x['position.latitude'] && x['position.valid'] !== false;
           }, rest = [];
@@ -398,10 +398,10 @@ function _updateHome() {
             if (last && r[i + 1].timestamp - r[i].timestamp >= 600 && r[i].timestamp - last.timestamp < 1800) rest.push([last['position.latitude'], last['position.longitude']]);
           }
           if (!(rest.length < 10)) {
-            _context4.n = 3;
+            _context5.n = 3;
             break;
           }
-          return _context4.a(2);
+          return _context5.a(2);
         case 3:
           // 記録が少ないうちは判定しない
           med = function med(a) {
@@ -423,9 +423,9 @@ function _updateHome() {
             }
           }
         case 4:
-          return _context4.a(2);
+          return _context5.a(2);
       }
-    }, _callee4);
+    }, _callee5);
   }));
   return _updateHome.apply(this, arguments);
 }
@@ -454,17 +454,205 @@ var baseKey = 'map';
 try {
   if (localStorage.getItem('catmon.base') === 'photo') baseKey = 'photo';
 } catch (e) {}
-function setBase(k) {
-  BASE[baseKey].remove();
-  baseKey = k;
-  BASE[k].addTo(map);
-  var b = document.getElementById('basemap');
-  if (b) b.textContent = k === 'photo' ? '地図' : '航空写真';
+// 11/12 Google の航空写真（Map Tiles API・オーナー指示）。キーはこの端末の中にだけ保存し、ページには書かない。
+// 航空写真を選んだ時だけ Google につなぐ（ふつうの地図では一切つながない）。キーが無い・失敗した時は国土地理院の写真
+var GKEY = 'catmon.gkey',
+  GSES = 'catmon.gses';
+var gkey = function gkey() {
   try {
-    localStorage.setItem('catmon.base', k);
-  } catch (e) {}
+    return localStorage.getItem(GKEY) || '';
+  } catch (e) {
+    return '';
+  }
+};
+var gLayer = null,
+  gAttr = '',
+  gTimer = 0,
+  baseSeq = 0;
+function gSession() {
+  return _gSession.apply(this, arguments);
 }
-BASE[baseKey].addTo(map);
+function _gSession() {
+  _gSession = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee6() {
+    var c, r, j, _t3;
+    return _regenerator().w(function (_context6) {
+      while (1) switch (_context6.p = _context6.n) {
+        case 0:
+          _context6.p = 0;
+          c = JSON.parse(localStorage.getItem(GSES) || 'null');
+          if (!(c && c.k === gkey().slice(-6) && +c.expiry - 3600 > Date.now() / 1000)) {
+            _context6.n = 1;
+            break;
+          }
+          return _context6.a(2, c.session);
+        case 1:
+          _context6.n = 3;
+          break;
+        case 2:
+          _context6.p = 2;
+          _t3 = _context6.v;
+        case 3:
+          _context6.n = 4;
+          return fetch('https://tile.googleapis.com/v1/createSession?key=' + encodeURIComponent(gkey()), {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              mapType: 'satellite',
+              language: 'ja-JP',
+              region: 'JP'
+            })
+          });
+        case 4:
+          r = _context6.v;
+          if (r.ok) {
+            _context6.n = 5;
+            break;
+          }
+          throw new Error('createSession ' + r.status);
+        case 5:
+          _context6.n = 6;
+          return r.json();
+        case 6:
+          j = _context6.v;
+          try {
+            localStorage.setItem(GSES, JSON.stringify({
+              k: gkey().slice(-6),
+              session: j.session,
+              expiry: j.expiry
+            }));
+          } catch (e) {}
+          return _context6.a(2, j.session);
+      }
+    }, _callee6, null, [[0, 2]]);
+  }));
+  return _gSession.apply(this, arguments);
+}
+var escTxt = function escTxt(t) {
+  return String(t).replace(/[&<>"]/g, function (c) {
+    return {
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;'
+    }[c];
+  });
+};
+function gCopy() {
+  clearTimeout(gTimer);
+  gTimer = setTimeout(/*#__PURE__*/_asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee2() {
+    var b, r, j, t, _t;
+    return _regenerator().w(function (_context2) {
+      while (1) switch (_context2.p = _context2.n) {
+        case 0:
+          if (!(!gLayer || !map.hasLayer(gLayer))) {
+            _context2.n = 1;
+            break;
+          }
+          return _context2.a(2);
+        case 1:
+          b = map.getBounds();
+          _context2.p = 2;
+          _context2.n = 3;
+          return fetch('https://tile.googleapis.com/tile/v1/viewport?session=' + gLayer._ses + '&key=' + encodeURIComponent(gkey()) + '&zoom=' + map.getZoom() + '&north=' + b.getNorth() + '&south=' + b.getSouth() + '&east=' + b.getEast() + '&west=' + b.getWest());
+        case 3:
+          r = _context2.v;
+          _context2.n = 4;
+          return r.json();
+        case 4:
+          j = _context2.v;
+          t = '<b>Google Maps</b>' + (j.copyright ? ' | ' + escTxt(j.copyright) : '');
+          if (t !== gAttr && map.hasLayer(gLayer)) {
+            if (gAttr) map.attributionControl.removeAttribution(gAttr);
+            gAttr = t;
+            map.attributionControl.addAttribution(gAttr);
+          }
+          _context2.n = 6;
+          break;
+        case 5:
+          _context2.p = 5;
+          _t = _context2.v;
+        case 6:
+          return _context2.a(2);
+      }
+    }, _callee2, null, [[2, 5]]);
+  })), 1500);
+}
+function setBase(_x3) {
+  return _setBase.apply(this, arguments);
+}
+function _setBase() {
+  _setBase = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee7(k) {
+    var my, b, lay, ses, _t4;
+    return _regenerator().w(function (_context7) {
+      while (1) switch (_context7.p = _context7.n) {
+        case 0:
+          my = ++baseSeq;
+          BASE.map.remove();
+          BASE.photo.remove();
+          if (gLayer) gLayer.remove();
+          if (gAttr) {
+            map.attributionControl.removeAttribution(gAttr);
+            gAttr = '';
+          }
+          baseKey = k;
+          b = document.getElementById('basemap');
+          if (b) b.textContent = k === 'photo' ? '地図' : '航空写真';
+          try {
+            localStorage.setItem('catmon.base', k);
+          } catch (e) {}
+          lay = BASE[k];
+          if (!(k === 'photo' && gkey())) {
+            _context7.n = 5;
+            break;
+          }
+          _context7.p = 1;
+          _context7.n = 2;
+          return gSession();
+        case 2:
+          ses = _context7.v;
+          if (!(my !== baseSeq)) {
+            _context7.n = 3;
+            break;
+          }
+          return _context7.a(2);
+        case 3:
+          if (!gLayer || gLayer._ses !== ses) {
+            gLayer = L.tileLayer('https://tile.googleapis.com/v1/2dtiles/{z}/{x}/{y}?session=' + ses + '&key=' + encodeURIComponent(gkey()), {
+              maxZoom: 21,
+              maxNativeZoom: 20,
+              attribution: ''
+            });
+            gLayer._ses = ses;
+          }
+          lay = gLayer;
+          _context7.n = 5;
+          break;
+        case 4:
+          _context7.p = 4;
+          _t4 = _context7.v;
+          console.log('Google の航空写真が使えないので国土地理院の写真にします', _t4);
+        case 5:
+          if (!(my !== baseSeq)) {
+            _context7.n = 6;
+            break;
+          }
+          return _context7.a(2);
+        case 6:
+          lay.addTo(map);
+          if (lay === gLayer) gCopy();
+        case 7:
+          return _context7.a(2);
+      }
+    }, _callee7, null, [[1, 4]]);
+  }));
+  return _setBase.apply(this, arguments);
+}
+map.on('moveend', function () {
+  if (gLayer && map.hasLayer(gLayer)) gCopy();
+});
+setBase(baseKey);
 var marker = L.marker([0, 0], {
   icon: L.divIcon({
     className: '',
@@ -484,10 +672,10 @@ var spanColor = function spanColor(t) {
   var m = function m(x, y, u) {
     return Math.round(x + (y - x) * u);
   };
-  var _ref2 = t < .5 ? [a, b, t * 2] : [b, c, (t - .5) * 2],
-    p = _ref2[0],
-    q = _ref2[1],
-    u = _ref2[2];
+  var _ref3 = t < .5 ? [a, b, t * 2] : [b, c, (t - .5) * 2],
+    p = _ref3[0],
+    q = _ref3[1],
+    u = _ref3[2];
   return 'rgb(' + m(p[0], q[0], u) + ',' + m(p[1], q[1], u) + ',' + m(p[2], q[2], u) + ')';
 };
 var NCOL = 8; // 色の段階（線の本数＝段階数×外出回数。Fire TV の負荷を抑える）
@@ -851,25 +1039,25 @@ function showDayLabel() {
   }
   $('next').disabled = isToday;
 }
-function loadPast(_x3) {
+function loadPast(_x4) {
   return _loadPast.apply(this, arguments);
 }
 function _loadPast() {
-  _loadPast = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee5(d) {
+  _loadPast = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee8(d) {
     var msgs, ok, pts;
-    return _regenerator().w(function (_context5) {
-      while (1) switch (_context5.n) {
+    return _regenerator().w(function (_context8) {
+      while (1) switch (_context8.n) {
         case 0:
           // 過去の日：その日の 0:00〜24:00 をまとめて読み、全体が見えるように地図を合わせる
           $('dayLabel').textContent = dayText(d) + ' を読み込み中…';
-          _context5.n = 1;
+          _context8.n = 1;
           return get('/messages?data=' + encodeURIComponent(JSON.stringify({
             from: d,
             to: d + 86399,
             fields: 'timestamp,position.latitude,position.longitude,position.valid'
           })));
         case 1:
-          msgs = _context5.v;
+          msgs = _context8.v;
           ok = msgs.filter(function (x) {
             return x['position.latitude'] && x['position.valid'] !== false;
           });
@@ -891,58 +1079,58 @@ function _loadPast() {
           showDayLabel();
           if (!pts.length) $('dayLabel').textContent = dayText(d) + '：記録なし';
         case 2:
-          return _context5.a(2);
+          return _context8.a(2);
       }
-    }, _callee5);
+    }, _callee8);
   }));
   return _loadPast.apply(this, arguments);
 }
-function goDay(_x4) {
+function goDay(_x5) {
   return _goDay.apply(this, arguments);
 } // 地図の移動（画面の 1/3 ずつ）と拡大縮小、猫の位置へ戻る
 function _goDay() {
-  _goDay = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee6(delta) {
-    var today, d, _t2;
-    return _regenerator().w(function (_context6) {
-      while (1) switch (_context6.p = _context6.n) {
+  _goDay = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee9(delta) {
+    var today, d, _t5;
+    return _regenerator().w(function (_context9) {
+      while (1) switch (_context9.p = _context9.n) {
         case 0:
           if (token) {
-            _context6.n = 1;
+            _context9.n = 1;
             break;
           }
-          return _context6.a(2);
+          return _context9.a(2);
         case 1:
           today = jstMidnight();
           d = delta === 0 ? today : (viewDay !== null && viewDay !== void 0 ? viewDay : today) + delta * 86400;
           if (d > today) d = today;
           viewDay = d;
           isToday = d === today;
-          _context6.p = 2;
+          _context9.p = 2;
           if (!isToday) {
-            _context6.n = 4;
+            _context9.n = 4;
             break;
           }
           trailDay = 0;
-          _context6.n = 3;
+          _context9.n = 3;
           return tick(true);
         case 3:
-          _context6.n = 5;
+          _context9.n = 5;
           break;
         case 4:
-          _context6.n = 5;
+          _context9.n = 5;
           return loadPast(d);
         case 5:
-          _context6.n = 7;
+          _context9.n = 7;
           break;
         case 6:
-          _context6.p = 6;
-          _t2 = _context6.v;
+          _context9.p = 6;
+          _t5 = _context9.v;
           $('dayLabel').textContent = '読み込みに失敗しました';
-          if (window.__diagShow) window.__diagShow('goDay: ' + _t2.message);
+          if (window.__diagShow) window.__diagShow('goDay: ' + _t5.message);
         case 7:
-          return _context6.a(2);
+          return _context9.a(2);
       }
-    }, _callee6, null, [[2, 6]]);
+    }, _callee9, null, [[2, 6]]);
   }));
   return _goDay.apply(this, arguments);
 }
@@ -972,6 +1160,21 @@ $('basemap').textContent = baseKey === 'photo' ? '地図' : '航空写真';
 $('basemap').onclick = function () {
   return setBase(baseKey === 'photo' ? 'map' : 'photo');
 };
+var gkeyLabel = function gkeyLabel() {
+  $('gkeyBtn').textContent = gkey() ? 'Googleキー（入力済み）' : 'Googleキー';
+};
+gkeyLabel();
+$('gkeyBtn').onclick = function () {
+  var v = prompt('Google の APIキーを貼り付けてください。\nこの端末の中にだけ保存されます。空にして OK を押すと消します。', '');
+  if (v === null) return;
+  try {
+    if (v.trim()) localStorage.setItem(GKEY, v.trim());else localStorage.removeItem(GKEY);
+    localStorage.removeItem(GSES);
+  } catch (e) {}
+  gLayer = null;
+  gkeyLabel();
+  if (baseKey === 'photo') setBase('photo');
+};
 $('center').onclick = function () {
   if (map.hasLayer(marker)) map.setView(marker.getLatLng(), Math.max(map.getZoom(), 16));
 };
@@ -998,48 +1201,48 @@ function jstMidnight() {
     j = n + 9 * 3600;
   return n - j % 86400;
 } // 日本時間の今日 0:00（UNIX 秒）
-function get(_x5) {
+function get(_x6) {
   return _get.apply(this, arguments);
 } // 10/31 テレビ（Firefox 34）は toLocaleTimeString の指定を無視して秒まで出した［オーナー報告］→ 日本時間の HH:MM を自前で作る
 function _get() {
-  _get = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee7(path) {
-    var r, _t3;
-    return _regenerator().w(function (_context7) {
-      while (1) switch (_context7.n) {
+  _get = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee0(path) {
+    var r, _t6;
+    return _regenerator().w(function (_context0) {
+      while (1) switch (_context0.n) {
         case 0:
-          _context7.n = 1;
+          _context0.n = 1;
           return fetch(API + path, {
             headers: {
               Authorization: 'FlespiToken ' + token
             }
           });
         case 1:
-          r = _context7.v;
+          r = _context0.v;
           if (!(r.status === 401 || r.status === 403)) {
-            _context7.n = 2;
+            _context0.n = 2;
             break;
           }
           throw new Error('auth');
         case 2:
           if (r.ok) {
-            _context7.n = 3;
+            _context0.n = 3;
             break;
           }
           throw new Error('http ' + r.status);
         case 3:
-          _context7.n = 4;
+          _context0.n = 4;
           return r.json();
         case 4:
-          _t3 = _context7.v.result;
-          if (_t3) {
-            _context7.n = 5;
+          _t6 = _context0.v.result;
+          if (_t6) {
+            _context0.n = 5;
             break;
           }
-          _t3 = [];
+          _t6 = [];
         case 5:
-          return _context7.a(2, _t3);
+          return _context0.a(2, _t6);
       }
-    }, _callee7);
+    }, _callee0);
   }));
   return _get.apply(this, arguments);
 }
@@ -1127,30 +1330,30 @@ function paint() {
   $('reset').style.display = alarm ? 'none' : '';
   $('rule').style.display = alarm ? 'none' : ''; // 異常中は帯と回転灯そのものが出ているので、説明の枠は隠して画面に収める   // 異常のときは説明文を隠して、右欄を画面に収める
 }
-function tick(_x6) {
+function tick(_x7) {
   return _tick.apply(this, arguments);
 } // 10/27 「電池の残り」行は削除（オーナー：休んでいる間は減り方が変わり当てにならない）
 function _tick() {
-  _tick = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee8(force) {
-    var t, tel, v, lat, lon, b, chg, full, chgTs, f, ev, day0, msgs, _i12, x, _t4;
-    return _regenerator().w(function (_context8) {
-      while (1) switch (_context8.p = _context8.n) {
+  _tick = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee1(force) {
+    var t, tel, v, lat, lon, b, chg, full, chgTs, f, ev, day0, msgs, _i12, x, _t7;
+    return _regenerator().w(function (_context1) {
+      while (1) switch (_context1.p = _context1.n) {
         case 0:
           if (token) {
-            _context8.n = 1;
+            _context1.n = 1;
             break;
           }
           showSetup();
-          return _context8.a(2);
+          return _context1.a(2);
         case 1:
-          _context8.p = 1;
-          _context8.n = 2;
+          _context1.p = 1;
+          _context1.n = 2;
           return updateHome().catch(function () {});
         case 2:
-          _context8.n = 3;
+          _context1.n = 3;
           return get('/telemetry/position.latitude,position.longitude,position.valid,timestamp,server.timestamp,battery.level,battery.voltage,battery.charging.status,event.code');
         case 3:
-          t = _context8.v[0];
+          t = _context1.v[0];
           tel = t && t.telemetry || {};
           v = function v(k) {
             return tel[k] && tel[k].value;
@@ -1194,7 +1397,7 @@ function _tick() {
           if (viewDay === null || viewDay === trailDay && day0 !== trailDay && viewDay >= day0 - 86400 && isToday) viewDay = day0;
           isToday = viewDay === day0;
           if (!isToday) {
-            _context8.n = 5;
+            _context1.n = 5;
             break;
           }
           if (trailDay !== day0) {
@@ -1205,13 +1408,13 @@ function _tick() {
             timeLayer.clearLayers();
             trailLayer.clearLayers();
           }
-          _context8.n = 4;
+          _context1.n = 4;
           return get('/messages?data=' + encodeURIComponent(JSON.stringify({
             from: trailLast + 1,
             fields: 'timestamp,position.latitude,position.longitude,position.valid'
           })));
         case 4:
-          msgs = _context8.v;
+          msgs = _context1.v;
           for (_i12 = 0; _i12 < msgs.length; _i12++) {
             x = msgs[_i12];
             if (x.timestamp > trailLast) trailLast = x.timestamp;
@@ -1227,24 +1430,24 @@ function _tick() {
         case 5:
           showDayLabel();
           paint();
-          _context8.n = 7;
+          _context1.n = 7;
           break;
         case 6:
-          _context8.p = 6;
-          _t4 = _context8.v;
-          if (_t4.message === 'auth') {
+          _context1.p = 6;
+          _t7 = _context1.v;
+          if (_t7.message === 'auth') {
             $('status').className = 'bad';
             $('status').textContent = 'トークンが使えません';
             showSetup();
           } else {
             $('status').className = 'bad';
             $('status').textContent = '通信エラー（再試行中）';
-            if (window.__diagShow) window.__diagShow('tick: ' + _t4.message);
+            if (window.__diagShow) window.__diagShow('tick: ' + _t7.message);
           } // テレビ用の診断表示（tv.html のみ）
         case 7:
-          return _context8.a(2);
+          return _context1.a(2);
       }
-    }, _callee8, null, [[1, 6]]);
+    }, _callee1, null, [[1, 6]]);
   }));
   return _tick.apply(this, arguments);
 }
@@ -1255,6 +1458,6 @@ window.__ok=1;
 </script>
 <div id="diag" style="display:none;position:fixed;left:0;right:0;bottom:0;z-index:20000;background:#000;color:#0f0;font:2.4vh monospace;padding:1vh;word-break:break-all"></div>
 <script>if(!window.__ok&&window.__diagShow){window.__diagShow("ブラウザ: "+navigator.userAgent);window.__diagShow("版 tv8 / 本体の動作: 止まっている")}</script>
-<script>(function(){var V="202611120707";function chk(){try{var x=new XMLHttpRequest();x.open("GET",location.pathname+"?t="+new Date().getTime(),true);x.onload=function(){var m=/var V="(\d+)"/.exec(x.responseText);if(x.status===200&&m&&m[1]!==V){location.replace(location.pathname+"?v="+m[1])}};x.send()}catch(e){}}chk();setInterval(chk,1800000)})();</script>
+<script>(function(){var V="202611121246";function chk(){try{var x=new XMLHttpRequest();x.open("GET",location.pathname+"?t="+new Date().getTime(),true);x.onload=function(){var m=/var V="(\d+)"/.exec(x.responseText);if(x.status===200&&m&&m[1]!==V){location.replace(location.pathname+"?v="+m[1])}};x.send()}catch(e){}}chk();setInterval(chk,1800000)})();</script>
 </body>
 </html>
