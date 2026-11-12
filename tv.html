@@ -36,6 +36,7 @@
   #basemap:focus{outline:4px solid #ffd54a}
   .tlabel{background:rgba(20,20,20,.85);color:#fff;border:0;border-radius:6px;font-size:1.7vh;font-weight:700;padding:2px 6px;box-shadow:none}
   .tlabel:before{display:none}
+  .tlabel.leaflet-interactive{cursor:pointer}
   .rlabel{position:absolute;transform:translate(-50%,-135%);white-space:nowrap;background:#fff;color:#2f6fd6;border:2px solid #6fa8ff;border-radius:999px;font-size:1.5vh;font-weight:700;padding:1px 8px}
   .note{font-size:2vh;color:var(--muted);line-height:1.35}
   #setup{position:fixed;inset:0;z-index:10000;box-sizing:border-box;background:var(--bg);display:none;flex-direction:column;align-items:center;justify-content:center;gap:3vh;padding:4vw;text-align:center}
@@ -709,6 +710,7 @@ var lblSize = function lblSize() {
   return [f * 3.3 + 14, f * 1.5 + 6];
 }; // 札の大きさ（.tlabel の文字 1.7vh に合わせる）
 var timeLayer = L.layerGroup().addTo(map);
+var hiddenLbl = new Set(); // 押して隠した札（時刻の秒で覚える）
 var tPts = [],
   tTs = [];
 function drawTimes(pts, ts) {
@@ -780,35 +782,53 @@ function layoutTimes() {
   });
   var boxes = [];
   var _loop = function _loop() {
-    var c = cand[_i5];
-    var _lblSize = lblSize(),
-      W0 = _lblSize[0],
-      H = _lblSize[1],
-      u = [].concat(c.text).reduce(function (s, ch) {
-        return s + (ch.charCodeAt(0) > 255 ? 2 : 1);
-      }, 0),
-      W = (W0 - 14) * u / 5 + 14; // 札の幅は文字数に合わせる（全角は2文字分）
-    var pt = map.latLngToContainerPoint(pts[c.i]);
-    var bx = [pt.x - W / 2, pt.y - H - 6, pt.x + W / 2, pt.y - 6];
-    if (!c.force && boxes.some(function (q) {
-      return bx[0] < q[2] && bx[2] > q[0] && bx[1] < q[3] && bx[3] > q[1];
-    })) return 1; // continue
-    boxes.push(bx);
-    L.circleMarker(pts[c.i], {
-      radius: 4,
-      color: '#fff',
-      weight: 2,
-      fillColor: '#ff5a36',
-      fillOpacity: 1
-    }).bindTooltip(c.text, {
-      permanent: true,
-      direction: 'top',
-      offset: [0, -4],
-      className: 'tlabel'
-    }).addTo(timeLayer);
-  };
+      var c = cand[_i5];
+      var _lblSize = lblSize(),
+        W0 = _lblSize[0],
+        H = _lblSize[1],
+        u = [].concat(c.text).reduce(function (s, ch) {
+          return s + (ch.charCodeAt(0) > 255 ? 2 : 1);
+        }, 0),
+        W = (W0 - 14) * u / 5 + 14; // 札の幅は文字数に合わせる（全角は2文字分）
+      var pt = map.latLngToContainerPoint(pts[c.i]);
+      var bx = [pt.x - W / 2, pt.y - H - 6, pt.x + W / 2, pt.y - 6];
+      var key = ts[c.i],
+        dot = L.circleMarker(pts[c.i], {
+          radius: 4,
+          color: '#fff',
+          weight: 2,
+          fillColor: '#ff5a36',
+          fillOpacity: 1
+        });
+      // 11/12 札を押すと隠す（オーナー指示）。隠した所は小さな点だけ残し、点を押すと札が戻る。ページを開き直すと全部戻る
+      if (hiddenLbl.has(key)) {
+        dot.on('click', function () {
+          hiddenLbl.delete(key);
+          layoutTimes();
+        }).addTo(timeLayer);
+        return 0; // continue
+      }
+      if (!c.force && boxes.some(function (q) {
+        return bx[0] < q[2] && bx[2] > q[0] && bx[1] < q[3] && bx[3] > q[1];
+      })) return 0; // continue
+      boxes.push(bx);
+      dot.bindTooltip(c.text, {
+        permanent: true,
+        direction: 'top',
+        offset: [0, -4],
+        className: 'tlabel',
+        interactive: true
+      }).addTo(timeLayer);
+      dot.getTooltip().on('click', function (e) {
+        L.DomEvent.stop(e);
+        hiddenLbl.add(key);
+        layoutTimes();
+      });
+    },
+    _ret;
   for (var _i5 = 0; _i5 < cand.length; _i5++) {
-    if (_loop()) continue;
+    _ret = _loop();
+    if (_ret === 0) continue;
   }
 }
 map.on('zoomend', layoutTimes);
@@ -1233,6 +1253,6 @@ window.__ok=1;
 </script>
 <div id="diag" style="display:none;position:fixed;left:0;right:0;bottom:0;z-index:20000;background:#000;color:#0f0;font:2.4vh monospace;padding:1vh;word-break:break-all"></div>
 <script>if(!window.__ok&&window.__diagShow){window.__diagShow("ブラウザ: "+navigator.userAgent);window.__diagShow("版 tv8 / 本体の動作: 止まっている")}</script>
-<script>(function(){var V="202611120238";function chk(){try{var x=new XMLHttpRequest();x.open("GET",location.pathname+"?t="+new Date().getTime(),true);x.onload=function(){var m=/var V="(\d+)"/.exec(x.responseText);if(x.status===200&&m&&m[1]!==V){location.replace(location.pathname+"?v="+m[1])}};x.send()}catch(e){}}chk();setInterval(chk,1800000)})();</script>
+<script>(function(){var V="202611120241";function chk(){try{var x=new XMLHttpRequest();x.open("GET",location.pathname+"?t="+new Date().getTime(),true);x.onload=function(){var m=/var V="(\d+)"/.exec(x.responseText);if(x.status===200&&m&&m[1]!==V){location.replace(location.pathname+"?v="+m[1])}};x.send()}catch(e){}}chk();setInterval(chk,1800000)})();</script>
 </body>
 </html>

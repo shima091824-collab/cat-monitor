@@ -35,6 +35,7 @@
   #basemap:focus{outline:4px solid #ffd54a}
   .tlabel{background:rgba(20,20,20,.85);color:#fff;border:0;border-radius:6px;font-size:1.7vh;font-weight:700;padding:2px 6px;box-shadow:none}
   .tlabel:before{display:none}
+  .tlabel.leaflet-interactive{cursor:pointer}
   .rlabel{position:absolute;transform:translate(-50%,-135%);white-space:nowrap;background:#fff;color:#2f6fd6;border:2px solid #6fa8ff;border-radius:999px;font-size:1.5vh;font-weight:700;padding:1px 8px}
   .note{font-size:2vh;color:var(--muted);line-height:1.35}
   #setup{position:fixed;inset:0;z-index:10000;box-sizing:border-box;background:var(--bg);display:none;flex-direction:column;align-items:center;justify-content:center;gap:3vh;padding:4vw;text-align:center}
@@ -282,6 +283,7 @@ const HOME_M=20, LABEL_MIN=0.5, ARROW_M=50;   // 10/27 19:00 家の円を半径6
 const BACK_FAR=40;
 const lblSize=()=>{const f=window.innerHeight*0.017; return [f*3.3+14, f*1.5+6]};   // 札の大きさ（.tlabel の文字 1.7vh に合わせる）
 const timeLayer=L.layerGroup().addTo(map);
+const hiddenLbl=new Set();   // 押して隠した札（時刻の秒で覚える）
 let tPts=[], tTs=[];
 function drawTimes(pts,ts){ tPts=pts; tTs=ts; layoutTimes() }
 function layoutTimes(){
@@ -304,9 +306,13 @@ function layoutTimes(){
   for(const c of cand){
     const [W0,H]=lblSize(), u=[...c.text].reduce((s,ch)=>s+(ch.charCodeAt(0)>255?2:1),0), W=(W0-14)*u/5+14;   // 札の幅は文字数に合わせる（全角は2文字分）
     const pt=map.latLngToContainerPoint(pts[c.i]); const bx=[pt.x-W/2,pt.y-H-6,pt.x+W/2,pt.y-6];
+    const key=ts[c.i], dot=L.circleMarker(pts[c.i],{radius:4,color:'#fff',weight:2,fillColor:'#ff5a36',fillOpacity:1});
+    // 11/12 札を押すと隠す（オーナー指示）。隠した所は小さな点だけ残し、点を押すと札が戻る。ページを開き直すと全部戻る
+    if(hiddenLbl.has(key)){ dot.on('click',()=>{ hiddenLbl.delete(key); layoutTimes() }).addTo(timeLayer); continue }
     if(!c.force&&boxes.some(q=>bx[0]<q[2]&&bx[2]>q[0]&&bx[1]<q[3]&&bx[3]>q[1])) continue;
     boxes.push(bx);
-    L.circleMarker(pts[c.i],{radius:4,color:'#fff',weight:2,fillColor:'#ff5a36',fillOpacity:1}).bindTooltip(c.text,{permanent:true,direction:'top',offset:[0,-4],className:'tlabel'}).addTo(timeLayer);
+    dot.bindTooltip(c.text,{permanent:true,direction:'top',offset:[0,-4],className:'tlabel',interactive:true}).addTo(timeLayer);
+    dot.getTooltip().on('click',e=>{ L.DomEvent.stop(e); hiddenLbl.add(key); layoutTimes() });
   }
 }
 map.on('zoomend',layoutTimes);
