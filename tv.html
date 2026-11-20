@@ -19,6 +19,9 @@
   .ok{background:var(--ok)} .warn{background:var(--warn)} .bad{background:var(--bad)}
   .row{display:flex;justify-content:space-between;align-items:baseline;border-bottom:1px solid #333;padding-bottom:.8vh}
   .row .k{font-size:2.7vh;color:var(--muted)} .row .v{font-size:4vh;font-weight:700}
+  /* 11/21 位置の時刻の下に小さく：家のWi-Fiが見えている／位置が古い */
+  #ploc{display:block;font-size:2.3vh;text-align:right;margin-top:.3vh} #ploc:empty{display:none}
+  #ploc.h{color:#5fd38d} #ploc.o{color:#f0c040}
   #days{display:flex;gap:.8vw;align-items:center}
   #days button{flex:1;font-size:2.6vh;padding:1.2vh .4vw;border-radius:1vh;border:0;background:#333;color:#fff}
   #days button:focus{outline:4px solid #ffd54a}
@@ -87,7 +90,7 @@
     .title{font-size:14px}
     #status{font-size:20px;padding:10px 12px;border-radius:12px}
     .row{padding-bottom:6px}
-    .row .k{font-size:14px} .row .v{font-size:20px}
+    .row .k{font-size:14px} .row .v{font-size:20px} #ploc{font-size:13px}
     .batt{width:34px;height:17px;border-width:2px;padding:2px;border-radius:4px}
     .batt:after{right:-6px;top:4px;width:3px;height:6px}
     .batt .bolt{width:18px;height:18px}
@@ -136,7 +139,7 @@
     <div id="alarmInfo"></div>
     <button id="ackBtn" style="display:none">確認しました</button>
     <div class="row"><span class="k">最後の受信</span><span class="v" id="ago">—</span></div>
-    <div class="row"><span class="k">位置の時刻</span><span class="v" id="ptime">—</span></div>
+    <div class="row"><span class="k">位置の時刻</span><span class="v"><span id="ptime">—</span><span id="ploc"></span></span></div>
     <div class="row"><span class="k" id="battK">電池残量</span><span class="v" style="display:flex;align-items:center;gap:1vw"><span class="batt" id="battIcon"><span id="battFill"></span><svg class="bolt" viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2 4 14h7l-1 8 9-12h-7z" fill="#ffd54a" stroke="#1c1c1c" stroke-width="1.5" stroke-linejoin="round"/></svg></span><span id="bat">—</span></span></div>
     <div class="row"><span class="k">状態</span><span class="v" id="mov">—</span></div>
     <div id="dayLabel">今日の軌跡</div>
@@ -162,6 +165,8 @@
 <script src="https://cdn.jsdelivr.net/npm/whatwg-fetch@3.6.2/dist/fetch.umd.js"></script>
 <script>
 if(!Array.prototype.flatMap){Array.prototype.flatMap=function(f,t){var o=[];for(var i=0;i<this.length;i++){var r=f.call(t,this[i],i,this);if(Object.prototype.toString.call(r)==="[object Array]"){for(var j=0;j<r.length;j++)o.push(r[j])}else o.push(r)}return o}}
+function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == typeof Symbol && "symbol" == typeof Symbol.iterator ? function (o) { return typeof o; } : function (o) { return o && "function" == typeof Symbol && o.constructor === Symbol && o !== Symbol.prototype ? "symbol" : typeof o; }, _typeof(o); }
+function _regeneratorValues(e) { if (null != e) { var t = e["function" == typeof Symbol && Symbol.iterator || "@@iterator"], r = 0; if (t) return t.call(e); if ("function" == typeof e.next) return e; if (!isNaN(e.length)) return { next: function next() { return e && r >= e.length && (e = void 0), { value: e && e[r++], done: !e }; } }; } throw new TypeError(_typeof(e) + " is not iterable"); }
 function _regenerator() { /*! regenerator-runtime -- Copyright (c) 2014-present, Facebook, Inc. -- license (MIT): https://github.com/babel/babel/blob/main/packages/babel-helpers/LICENSE */ var e, t, r = "function" == typeof Symbol ? Symbol : {}, n = r.iterator || "@@iterator", o = r.toStringTag || "@@toStringTag"; function i(r, n, o, i) { var c = n && n.prototype instanceof Generator ? n : Generator, u = Object.create(c.prototype); return _regeneratorDefine2(u, "_invoke", function (r, n, o) { var i, c, u, f = 0, p = o || [], y = !1, G = { p: 0, n: 0, v: e, a: d, f: d.bind(e, 4), d: function d(t, r) { return i = t, c = 0, u = e, G.n = r, a; } }; function d(r, n) { for (c = r, u = n, t = 0; !y && f && !o && t < p.length; t++) { var o, i = p[t], d = G.p, l = i[2]; r > 3 ? (o = l === n) && (u = i[(c = i[4]) ? 5 : (c = 3, 3)], i[4] = i[5] = e) : i[0] <= d && ((o = r < 2 && d < i[1]) ? (c = 0, G.v = n, G.n = i[1]) : d < l && (o = r < 3 || i[0] > n || n > l) && (i[4] = r, i[5] = n, G.n = l, c = 0)); } if (o || r > 1) return a; throw y = !0, n; } return function (o, p, l) { if (f > 1) throw TypeError("Generator is already running"); for (y && 1 === p && d(p, l), c = p, u = l; (t = c < 2 ? e : u) || !y;) { i || (c ? (c > 1 && (G.n = c < 3 ? -1 : u), d(c, u)) : G.v = u); try { if (f = 2, i) { if (c || (o = "next"), t = i[o]) { if (!(t = t.call(i, u))) throw TypeError("iterator result is not an object"); if (!t.done) return t; u = t.value, c < 2 && (c = 0); } else 1 === c && (t = i.return) && t.call(i), c < 2 && (u = TypeError("The iterator does not provide a '" + o + "' method"), c = 1); i = e; } else if ((t = (y = G.n < 0) ? u : r.call(n, G)) !== a) break; } catch (t) { i = e, c = 1, u = t; } finally { f = 1; } } return { value: t, done: y }; }; }(r, o, i), !0), u; } var a = {}; function Generator() {} function GeneratorFunction() {} function GeneratorFunctionPrototype() {} t = Object.getPrototypeOf; var c = [][n] ? t(t([][n]())) : (_regeneratorDefine2(t = {}, n, function () { return this; }), t), u = GeneratorFunctionPrototype.prototype = Generator.prototype = Object.create(c); function f(e) { return Object.setPrototypeOf ? Object.setPrototypeOf(e, GeneratorFunctionPrototype) : (e.__proto__ = GeneratorFunctionPrototype, _regeneratorDefine2(e, o, "GeneratorFunction")), e.prototype = Object.create(u), e; } return GeneratorFunction.prototype = GeneratorFunctionPrototype, _regeneratorDefine2(u, "constructor", GeneratorFunctionPrototype), _regeneratorDefine2(GeneratorFunctionPrototype, "constructor", GeneratorFunction), GeneratorFunction.displayName = "GeneratorFunction", _regeneratorDefine2(GeneratorFunctionPrototype, o, "GeneratorFunction"), _regeneratorDefine2(u), _regeneratorDefine2(u, o, "Generator"), _regeneratorDefine2(u, n, function () { return this; }), _regeneratorDefine2(u, "toString", function () { return "[object Generator]"; }), (_regenerator = function _regenerator() { return { w: i, m: f }; })(); }
 function _regeneratorDefine2(e, r, n, t) { var i = Object.defineProperty; try { i({}, "", {}); } catch (e) { i = 0; } _regeneratorDefine2 = function _regeneratorDefine(e, r, n, t) { function o(r, n) { _regeneratorDefine2(e, r, function (e) { return this._invoke(r, n, e); }); } r ? i ? i(e, r, { value: n, enumerable: !t, configurable: !t, writable: !t }) : e[r] = n : (o("next", 0), o("throw", 1), o("return", 2)); }, _regeneratorDefine2(e, r, n, t); }
 function asyncGeneratorStep(n, t, e, r, o, a, c) { try { var i = n[a](c), u = i.value; } catch (n) { return void e(n); } i.done ? t(u) : Promise.resolve(u).then(r, o); }
@@ -428,7 +433,98 @@ function _updateHome() {
     }, _callee5);
   }));
   return _updateHome.apply(this, arguments);
+} // 11/21 家のWi-Fi：過去7日の深夜0〜5時のWi-Fi記録で6割以上に出てくる局を「家のWi-Fi」とみなす。
+// 11/18 検証：深夜の記録431件で最多の局が99%、家から50〜100mのGPS点の時も同じ強さで見えていた＝家の中でGPSが飛んでいただけ［実測］。
+// Wi-Fiの記録はGPSが取れない時に送られる（GPSとWi-Fiが同じ記録に入ることはない［実測］）。局の番号はページにも保存にも残さない（毎回計算）。
+var WF = ['', '.1', '.2', '.3', '.4'].map(function (s) {
+  return 'wifi.mac.address' + s;
+});
+var HOME_AP = null,
+  apAt = 0;
+function updateHomeAP() {
+  return _updateHomeAP.apply(this, arguments);
 }
+function _updateHomeAP() {
+  _updateHomeAP = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee6() {
+    var to, r, cnt, n, _loop2, _i12, s;
+    return _regenerator().w(function (_context7) {
+      while (1) switch (_context7.n) {
+        case 0:
+          if (!(Date.now() - apAt < 3600000 && HOME_AP)) {
+            _context7.n = 1;
+            break;
+          }
+          return _context7.a(2);
+        case 1:
+          apAt = Date.now();
+          to = Math.floor(Date.now() / 1000);
+          _context7.n = 2;
+          return get('/messages?data=' + encodeURIComponent(JSON.stringify({
+            from: to - 7 * 86400,
+            to: to,
+            fields: 'timestamp,' + WF.join(',')
+          })));
+        case 2:
+          r = _context7.v;
+          cnt = {};
+          n = 0;
+          _loop2 = /*#__PURE__*/_regenerator().m(function _loop2() {
+            var x;
+            return _regenerator().w(function (_context6) {
+              while (1) switch (_context6.n) {
+                case 0:
+                  x = r[_i12];
+                  if (!(!x['wifi.mac.address'] || (x.timestamp + 9 * 3600) % 86400 >= 6 * 3600)) {
+                    _context6.n = 1;
+                    break;
+                  }
+                  return _context6.a(2, 1);
+                case 1:
+                  n++;
+                  WF.forEach(function (k) {
+                    if (x[k]) cnt[x[k]] = (cnt[x[k]] || 0) + 1;
+                  });
+                case 2:
+                  return _context6.a(2);
+              }
+            }, _loop2);
+          });
+          _i12 = 0;
+        case 3:
+          if (!(_i12 < r.length)) {
+            _context7.n = 6;
+            break;
+          }
+          return _context7.d(_regeneratorValues(_loop2()), 4);
+        case 4:
+          if (!_context7.v) {
+            _context7.n = 5;
+            break;
+          }
+          return _context7.a(3, 5);
+        case 5:
+          _i12++;
+          _context7.n = 3;
+          break;
+        case 6:
+          if (!(n < 10)) {
+            _context7.n = 7;
+            break;
+          }
+          return _context7.a(2);
+        case 7:
+          s = new Set(Object.keys(cnt).filter(function (m) {
+            return cnt[m] >= n * 0.6;
+          }));
+          HOME_AP = s.size ? s : null;
+        case 8:
+          return _context7.a(2);
+      }
+    }, _callee6);
+  }));
+  return _updateHomeAP.apply(this, arguments);
+}
+var wifiHomeTs = 0; // 家のWi-Fiが見えた最新の記録の時刻（それがGPSより新しければ「家」）
 try {
   localStorage.removeItem('catmon.home');
 } catch (e) {}
@@ -474,26 +570,26 @@ function gSession() {
   return _gSession.apply(this, arguments);
 }
 function _gSession() {
-  _gSession = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee6() {
+  _gSession = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee7() {
     var c, r, _m, j, _t3, _t4, _t5;
-    return _regenerator().w(function (_context6) {
-      while (1) switch (_context6.p = _context6.n) {
+    return _regenerator().w(function (_context8) {
+      while (1) switch (_context8.p = _context8.n) {
         case 0:
-          _context6.p = 0;
+          _context8.p = 0;
           c = JSON.parse(localStorage.getItem(GSES) || 'null');
           if (!(c && c.k === gkey().slice(-6) && +c.expiry - 3600 > Date.now() / 1000)) {
-            _context6.n = 1;
+            _context8.n = 1;
             break;
           }
-          return _context6.a(2, c.session);
+          return _context8.a(2, c.session);
         case 1:
-          _context6.n = 3;
+          _context8.n = 3;
           break;
         case 2:
-          _context6.p = 2;
-          _t3 = _context6.v;
+          _context8.p = 2;
+          _t3 = _context8.v;
         case 3:
-          _context6.n = 4;
+          _context8.n = 4;
           return fetch('https://tile.googleapis.com/v1/createSession?key=' + encodeURIComponent(gkey()), {
             method: 'POST',
             headers: {
@@ -506,36 +602,36 @@ function _gSession() {
             })
           });
         case 4:
-          r = _context6.v;
+          r = _context8.v;
           if (r.ok) {
-            _context6.n = 10;
+            _context8.n = 10;
             break;
           }
           _m = '';
-          _context6.p = 5;
-          _context6.n = 6;
+          _context8.p = 5;
+          _context8.n = 6;
           return r.json();
         case 6:
-          _t4 = _context6.v.error.status;
+          _t4 = _context8.v.error.status;
           if (_t4) {
-            _context6.n = 7;
+            _context8.n = 7;
             break;
           }
           _t4 = '';
         case 7:
           _m = _t4;
-          _context6.n = 9;
+          _context8.n = 9;
           break;
         case 8:
-          _context6.p = 8;
-          _t5 = _context6.v;
+          _context8.p = 8;
+          _t5 = _context8.v;
         case 9:
           throw new Error(r.status + (_m ? ' ' + _m : ''));
         case 10:
-          _context6.n = 11;
+          _context8.n = 11;
           return r.json();
         case 11:
-          j = _context6.v;
+          j = _context8.v;
           try {
             localStorage.setItem(GSES, JSON.stringify({
               k: gkey().slice(-6),
@@ -543,9 +639,9 @@ function _gSession() {
               expiry: j.expiry
             }));
           } catch (e) {}
-          return _context6.a(2, j.session);
+          return _context8.a(2, j.session);
       }
-    }, _callee6, null, [[5, 8], [0, 2]]);
+    }, _callee7, null, [[5, 8], [0, 2]]);
   }));
   return _gSession.apply(this, arguments);
 }
@@ -603,10 +699,10 @@ function setBase(_x3) {
   return _setBase.apply(this, arguments);
 }
 function _setBase() {
-  _setBase = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee7(k) {
+  _setBase = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee8(k) {
     var my, b, lay, ses, _t6;
-    return _regenerator().w(function (_context7) {
-      while (1) switch (_context7.p = _context7.n) {
+    return _regenerator().w(function (_context9) {
+      while (1) switch (_context9.p = _context9.n) {
         case 0:
           my = ++baseSeq;
           BASE.map.remove();
@@ -624,19 +720,19 @@ function _setBase() {
           } catch (e) {}
           lay = BASE[k];
           if (!(k === 'photo' && gkey())) {
-            _context7.n = 6;
+            _context9.n = 6;
             break;
           }
-          _context7.p = 1;
-          _context7.n = 2;
+          _context9.p = 1;
+          _context9.n = 2;
           return gSession();
         case 2:
-          ses = _context7.v;
+          ses = _context9.v;
           if (!(my !== baseSeq)) {
-            _context7.n = 3;
+            _context9.n = 3;
             break;
           }
-          return _context7.a(2);
+          return _context9.a(2);
         case 3:
           if (!gLayer || gLayer._ses !== ses) {
             gLayer = L.tileLayer('https://tile.googleapis.com/v1/2dtiles/{z}/{x}/{y}?session=' + ses + '&key=' + encodeURIComponent(gkey()), {
@@ -648,28 +744,28 @@ function _setBase() {
           }
           lay = gLayer;
           gErr = '';
-          _context7.n = 5;
+          _context9.n = 5;
           break;
         case 4:
-          _context7.p = 4;
-          _t6 = _context7.v;
+          _context9.p = 4;
+          _t6 = _context9.v;
           gErr = String(_t6 && _t6.message || _t6);
           console.log('Google の航空写真が使えないので国土地理院の写真にします', _t6);
         case 5:
           gkeyLabel();
         case 6:
           if (!(my !== baseSeq)) {
-            _context7.n = 7;
+            _context9.n = 7;
             break;
           }
-          return _context7.a(2);
+          return _context9.a(2);
         case 7:
           lay.addTo(map);
           if (lay === gLayer) gCopy();
         case 8:
-          return _context7.a(2);
+          return _context9.a(2);
       }
-    }, _callee7, null, [[1, 4]]);
+    }, _callee8, null, [[1, 4]]);
   }));
   return _setBase.apply(this, arguments);
 }
@@ -1067,21 +1163,21 @@ function loadPast(_x4) {
   return _loadPast.apply(this, arguments);
 }
 function _loadPast() {
-  _loadPast = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee8(d) {
+  _loadPast = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee9(d) {
     var msgs, ok, pts;
-    return _regenerator().w(function (_context8) {
-      while (1) switch (_context8.n) {
+    return _regenerator().w(function (_context0) {
+      while (1) switch (_context0.n) {
         case 0:
           // 過去の日：その日の 0:00〜24:00 をまとめて読み、全体が見えるように地図を合わせる
           $('dayLabel').textContent = dayText(d) + ' を読み込み中…';
-          _context8.n = 1;
+          _context0.n = 1;
           return get('/messages?data=' + encodeURIComponent(JSON.stringify({
             from: d,
             to: d + 86399,
             fields: 'timestamp,position.latitude,position.longitude,position.valid'
           })));
         case 1:
-          msgs = _context8.v;
+          msgs = _context0.v;
           ok = msgs.filter(function (x) {
             return x['position.latitude'] && x['position.valid'] !== false;
           });
@@ -1103,61 +1199,61 @@ function _loadPast() {
           showDayLabel();
           if (!pts.length) $('dayLabel').textContent = dayText(d) + '：記録なし';
         case 2:
-          return _context8.a(2);
+          return _context0.a(2);
       }
-    }, _callee8);
+    }, _callee9);
   }));
   return _loadPast.apply(this, arguments);
 }
 function goDay(_x5) {
   return _goDay.apply(this, arguments);
-} // 地図の移動（画面の 1/3 ずつ）と拡大縮小、猫の位置へ戻る
+}
 function _goDay() {
-  _goDay = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee9(delta) {
+  _goDay = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee0(delta) {
     var today, d, _t7;
-    return _regenerator().w(function (_context9) {
-      while (1) switch (_context9.p = _context9.n) {
+    return _regenerator().w(function (_context1) {
+      while (1) switch (_context1.p = _context1.n) {
         case 0:
           if (token) {
-            _context9.n = 1;
+            _context1.n = 1;
             break;
           }
-          return _context9.a(2);
+          return _context1.a(2);
         case 1:
           today = jstMidnight();
           d = delta === 0 ? today : (viewDay !== null && viewDay !== void 0 ? viewDay : today) + delta * 86400;
           if (d > today) d = today;
           viewDay = d;
           isToday = d === today;
-          _context9.p = 2;
+          _context1.p = 2;
           if (!isToday) {
-            _context9.n = 4;
+            _context1.n = 4;
             break;
           }
           trailDay = 0;
-          _context9.n = 3;
+          _context1.n = 3;
           return tick(true);
         case 3:
-          _context9.n = 5;
+          _context1.n = 5;
           break;
         case 4:
-          _context9.n = 5;
+          _context1.n = 5;
           return loadPast(d);
         case 5:
-          _context9.n = 7;
+          _context1.n = 7;
           break;
         case 6:
-          _context9.p = 6;
-          _t7 = _context9.v;
+          _context1.p = 6;
+          _t7 = _context1.v;
           $('dayLabel').textContent = '読み込みに失敗しました';
           if (window.__diagShow) window.__diagShow('goDay: ' + _t7.message);
         case 7:
-          return _context9.a(2);
+          return _context1.a(2);
       }
-    }, _callee9, null, [[2, 6]]);
+    }, _callee0, null, [[2, 6]]);
   }));
   return _goDay.apply(this, arguments);
-}
+} // 地図の移動（画面の 1/3 ずつ）と拡大縮小、猫の位置へ戻る
 var panBy = function panBy(fx, fy) {
   var z = map.getSize();
   map.panBy([z.x * fx / 3, z.y * fy / 3]);
@@ -1232,49 +1328,49 @@ function jstMidnight() {
 } // 日本時間の今日 0:00（UNIX 秒）
 function get(_x6) {
   return _get.apply(this, arguments);
-} // 10/31 テレビ（Firefox 34）は toLocaleTimeString の指定を無視して秒まで出した［オーナー報告］→ 日本時間の HH:MM を自前で作る
+}
 function _get() {
-  _get = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee0(path) {
+  _get = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee1(path) {
     var r, _t8;
-    return _regenerator().w(function (_context0) {
-      while (1) switch (_context0.n) {
+    return _regenerator().w(function (_context10) {
+      while (1) switch (_context10.n) {
         case 0:
-          _context0.n = 1;
+          _context10.n = 1;
           return fetch(API + path, {
             headers: {
               Authorization: 'FlespiToken ' + token
             }
           });
         case 1:
-          r = _context0.v;
+          r = _context10.v;
           if (!(r.status === 401 || r.status === 403)) {
-            _context0.n = 2;
+            _context10.n = 2;
             break;
           }
           throw new Error('auth');
         case 2:
           if (r.ok) {
-            _context0.n = 3;
+            _context10.n = 3;
             break;
           }
           throw new Error('http ' + r.status);
         case 3:
-          _context0.n = 4;
+          _context10.n = 4;
           return r.json();
         case 4:
-          _t8 = _context0.v.result;
+          _t8 = _context10.v.result;
           if (_t8) {
-            _context0.n = 5;
+            _context10.n = 5;
             break;
           }
           _t8 = [];
         case 5:
-          return _context0.a(2, _t8);
+          return _context10.a(2, _t8);
       }
-    }, _callee0);
+    }, _callee1);
   }));
   return _get.apply(this, arguments);
-}
+} // 10/31 テレビ（Firefox 34）は toLocaleTimeString の指定を無視して秒まで出した［オーナー報告］→ 日本時間の HH:MM を自前で作る
 var hm = function hm(t) {
   var d = new Date((t + 9 * 3600) * 1000),
     p = function p(n) {
@@ -1316,8 +1412,23 @@ function paint() {
     info = $('alarmInfo');
   $('ago').textContent = agoText(s);
   $('homeWarn').style.display = HOME ? 'none' : 'block';
+  // 11/21 家のWi-FiがGPSより新しい記録で見えていれば、古いGPSの位置（車で帰宅中の点など）より優先して「家」とする
+  var homeNow = wifiHomeTs > lastPosTs,
+    now = Date.now() / 1000;
   var dist = HOME && lastPos ? Math.round(map.distance(HOME, lastPos)) : null,
-    out = dist != null && dist > ALARM_M;
+    out = !homeNow && dist != null && dist > ALARM_M;
+  var pl = $('ploc'),
+    pm = (now - lastPosTs) / 60;
+  if (homeNow) {
+    pl.className = 'h';
+    pl.textContent = '🏠 家のWi-Fi圏内（' + hm(wifiHomeTs) + '）';
+  } else if (lastPosTs && pm > 30) {
+    pl.className = 'o';
+    pl.textContent = '⚠ ' + (pm < 60 ? Math.floor(pm) + '分' : Math.floor(pm / 60) + '時間') + '前の位置';
+  } else {
+    pl.className = '';
+    pl.textContent = '';
+  }
   var dot = document.querySelector('.catdot');
   var alarm = false;
   info.style.display = 'none';
@@ -1327,7 +1438,7 @@ function paint() {
   } else if (onCharger) {
     st.className = 'home';
     st.textContent = '充電器につながっています';
-  } else if (dist != null && !out) {
+  } else if (homeNow || dist != null && !out) {
     st.className = 'home';
     st.textContent = '家で休んでいます';
   } else if (out && mins >= ALARM_MIN && ackServer === lastServer) {
@@ -1361,28 +1472,31 @@ function paint() {
 }
 function tick(_x7) {
   return _tick.apply(this, arguments);
-} // 10/27 「電池の残り」行は削除（オーナー：休んでいる間は減り方が変わり当てにならない）
+}
 function _tick() {
-  _tick = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee1(force) {
-    var t, tel, v, lat, lon, b, chg, full, chgTs, f, ev, day0, msgs, _i12, x, _t9;
-    return _regenerator().w(function (_context1) {
-      while (1) switch (_context1.p = _context1.n) {
+  _tick = _asyncToGenerator(/*#__PURE__*/_regenerator().m(function _callee10(force) {
+    var t, tel, v, lat, lon, wts, b, chg, full, chgTs, f, ev, day0, msgs, _i14, x, _t9;
+    return _regenerator().w(function (_context11) {
+      while (1) switch (_context11.p = _context11.n) {
         case 0:
           if (token) {
-            _context1.n = 1;
+            _context11.n = 1;
             break;
           }
           showSetup();
-          return _context1.a(2);
+          return _context11.a(2);
         case 1:
-          _context1.p = 1;
-          _context1.n = 2;
+          _context11.p = 1;
+          _context11.n = 2;
           return updateHome().catch(function () {});
         case 2:
-          _context1.n = 3;
-          return get('/telemetry/position.latitude,position.longitude,position.valid,timestamp,server.timestamp,battery.level,battery.voltage,battery.charging.status,event.code');
+          _context11.n = 3;
+          return updateHomeAP().catch(function () {});
         case 3:
-          t = _context1.v[0];
+          _context11.n = 4;
+          return get('/telemetry/position.latitude,position.longitude,position.valid,timestamp,server.timestamp,battery.level,battery.voltage,battery.charging.status,event.code,' + WF.join(','));
+        case 4:
+          t = _context11.v[0];
           tel = t && t.telemetry || {};
           v = function v(k) {
             return tel[k] && tel[k].value;
@@ -1400,6 +1514,11 @@ function _tick() {
             }
             $('ptime').textContent = tel['position.latitude'] ? (tel['position.latitude'].ts < jstMidnight() ? dayText(tel['position.latitude'].ts - (tel['position.latitude'].ts + 9 * 3600) % 86400).replace(/\(.\)/, '') + ' ' : '') + hm(tel['position.latitude'].ts) : '—';
           }
+          // 最新のWi-Fi記録（同じ時刻の局だけ）に家の局があれば、その時刻を覚える
+          wts = tel['wifi.mac.address'] && tel['wifi.mac.address'].ts;
+          wifiHomeTs = wts && HOME_AP && WF.some(function (k) {
+            return tel[k] && Math.abs(tel[k].ts - wts) < 2 && HOME_AP.has(tel[k].value);
+          }) ? wts : 0;
           b = v('battery.level');
           lastBat = b;
           chg = v('battery.charging.status') === true; // 10/29 満充電（FULL）になると充電器につないだままでも charging.status＝false が届く［実測：10/29 20:40 100%・4.187V で false］→ 40分後に誤報。
@@ -1426,7 +1545,7 @@ function _tick() {
           if (viewDay === null || viewDay === trailDay && day0 !== trailDay && viewDay >= day0 - 86400 && isToday) viewDay = day0;
           isToday = viewDay === day0;
           if (!isToday) {
-            _context1.n = 5;
+            _context11.n = 6;
             break;
           }
           if (trailDay !== day0) {
@@ -1437,15 +1556,15 @@ function _tick() {
             timeLayer.clearLayers();
             trailLayer.clearLayers();
           }
-          _context1.n = 4;
+          _context11.n = 5;
           return get('/messages?data=' + encodeURIComponent(JSON.stringify({
             from: trailLast + 1,
             fields: 'timestamp,position.latitude,position.longitude,position.valid'
           })));
-        case 4:
-          msgs = _context1.v;
-          for (_i12 = 0; _i12 < msgs.length; _i12++) {
-            x = msgs[_i12];
+        case 5:
+          msgs = _context11.v;
+          for (_i14 = 0; _i14 < msgs.length; _i14++) {
+            x = msgs[_i14];
             if (x.timestamp > trailLast) trailLast = x.timestamp;
             if (x['position.latitude'] && x['position.valid'] !== false) {
               trailPts.push([x['position.latitude'], x['position.longitude']]);
@@ -1456,14 +1575,14 @@ function _tick() {
             drawTrail(trailPts, trailTs);
             drawTimes(trailPts, trailTs);
           }
-        case 5:
+        case 6:
           showDayLabel();
           paint();
-          _context1.n = 7;
+          _context11.n = 8;
           break;
-        case 6:
-          _context1.p = 6;
-          _t9 = _context1.v;
+        case 7:
+          _context11.p = 7;
+          _t9 = _context11.v;
           if (_t9.message === 'auth') {
             $('status').className = 'bad';
             $('status').textContent = 'トークンが使えません';
@@ -1473,13 +1592,13 @@ function _tick() {
             $('status').textContent = '通信エラー（再試行中）';
             if (window.__diagShow) window.__diagShow('tick: ' + _t9.message);
           } // テレビ用の診断表示（tv.html のみ）
-        case 7:
-          return _context1.a(2);
+        case 8:
+          return _context11.a(2);
       }
-    }, _callee1, null, [[1, 6]]);
+    }, _callee10, null, [[1, 7]]);
   }));
   return _tick.apply(this, arguments);
-}
+} // 10/27 「電池の残り」行は削除（オーナー：休んでいる間は減り方が変わり当てにならない）
 tick();
 setInterval(tick, 10000);
 setInterval(paint, 1000);
@@ -1487,6 +1606,6 @@ window.__ok=1;
 </script>
 <div id="diag" style="display:none;position:fixed;left:0;right:0;bottom:0;z-index:20000;background:#000;color:#0f0;font:2.4vh monospace;padding:1vh;word-break:break-all"></div>
 <script>if(!window.__ok&&window.__diagShow){window.__diagShow("ブラウザ: "+navigator.userAgent);window.__diagShow("版 tv8 / 本体の動作: 止まっている")}</script>
-<script>(function(){var V="202611121310";function chk(){try{var x=new XMLHttpRequest();x.open("GET",location.pathname+"?t="+new Date().getTime(),true);x.onload=function(){var m=/var V="(\d+)"/.exec(x.responseText);if(x.status===200&&m&&m[1]!==V){location.replace(location.pathname+"?v="+m[1])}};x.send()}catch(e){}}chk();setInterval(chk,1800000)})();</script>
+<script>(function(){var V="202611202329";function chk(){try{var x=new XMLHttpRequest();x.open("GET",location.pathname+"?t="+new Date().getTime(),true);x.onload=function(){var m=/var V="(\d+)"/.exec(x.responseText);if(x.status===200&&m&&m[1]!==V){location.replace(location.pathname+"?v="+m[1])}};x.send()}catch(e){}}chk();setInterval(chk,1800000)})();</script>
 </body>
 </html>
